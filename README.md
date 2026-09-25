@@ -37,15 +37,28 @@ Esfera de reloj interactiva, animada y de alta fidelidad inspirada en el univers
 3. **Shadowheart (Clériga de Shar)**: Ocaso crepuscular (#9381FF), cian de engaño (#00F5D4) y noche abisal.
 4. **Karlach (Corazón Infernal)**: Bronce forjado (#FF8500), magma ardiente (#D90429) y ascuas de motor infernal.
 
-### 3. Zonas Táctiles Multiacción (Multi-Zone Touch UX)
+### 3. Widget de Información del Tiempo y Atmósfera
+- **Temperatura en Tiempo Real**: Visualización en grados Celsius o Fahrenheit (`22°C` / `72°F`).
+- **Condiciones y Lore de Faerûn**: Iconos atmosféricos y descripciones inspiradas en los Reinos Olvidados:
+  - ☀️ **Despejado** (*Sol de Lathander*)
+  - ⛅ **Parcialmente Nublado** (*Vientos de Selûne*)
+  - ☁️ **Nublado** (*Brumas de la Costa de la Espada*)
+  - 🌧️ **Lluvia** (*Lágrimas de Ilmater*)
+  - ⛈️ **Tormenta Arcana** (*Furia de Talos*)
+  - ❄️ **Nieve** (*Aliento de Auril*)
+  - 🌫️ **Niebla** (*Niebla de la Infraoscuridad*)
+- **Integración AOD**: Muestra la temperatura de manera minimalista junto a la fecha y la batería en el modo de pantalla siempre activa.
+
+### 4. Zonas Táctiles Multiacción (Multi-Zone Touch UX)
 - **Tocar D20**: Dispara la tirada animada con física de temblor, desaceleración y respuesta háptica.
 - **Tocar Insignia de CD**: Alterna la habilidad activa (FUE -> DES -> CON -> INT -> SAB -> CAR).
 - **Tocar Reloj Superior**: Alterna formato 24h / 12h y rota el tema de compañero.
 - **Tocar Barra Izquierda (HP)**: Alterna entre Porcentaje de Batería (`HP 85%`) y Horas Estimadas Restantes (`18h BAT`).
 - **Tocar Barra Derecha (XP)**: Alterna entre Pasos (`7.4k XP`), Distancia (`5.2 km`) y Calorías (`340 kcal`).
-- **Tocar Sección Inferior**: Alterna entre el calendario gregoriano (`VIE, 25 SEP`) y el calendario oficial de los Reinos Olvidados / Faerûn (`25 EL DESVANECER`).
+- **Tocar Sección Inferior (Izquierda)**: Alterna la unidad de temperatura entre **Celsius (°C)** y **Fahrenheit (°F)**.
+- **Tocar Sección Inferior (Derecha)**: Alterna entre el calendario gregoriano (`VIE, 25 SEP`) y el calendario oficial de los Reinos Olvidados / Faerûn (`25 EL DESVANECER`).
 
-### 4. Audio Procedural (Simulador Web)
+### 5. Audio Procedural (Simulador Web)
 - Generación de sonido mediante la **Web Audio API** integrada (sin archivos de audio externos pesados):
   - Traqueteo de dados de hueso y metal al rodar.
   - Arpegio triunfal en Do Mayor al sacar Éxito Crítico (20).

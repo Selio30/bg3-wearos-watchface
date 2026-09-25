@@ -443,6 +443,27 @@
                 <input type="range" id="xpSlider" min="0" max="15000" value="7420">
             </div>
 
+            <!-- Weather Controls -->
+            <div>
+                <div class="section-label">
+                    <span>Clima & Atmósfera (Faerûn)</span>
+                    <span id="tempLabel" style="color: var(--gold-light); font-weight: 600;">22°C</span>
+                </div>
+                <div class="dc-bar" style="margin-bottom: 8px;">
+                    <select id="weatherSelect">
+                        <option value="SUNNY" selected>☀️ Despejado (Lathander)</option>
+                        <option value="PARTLY_CLOUDY">⛅ Parcialmente Nublado</option>
+                        <option value="CLOUDY">☁️ Nublado (Costa)</option>
+                        <option value="RAINY">🌧️ Lluvia (Ilmater)</option>
+                        <option value="THUNDERSTORM">⛈️ Tormenta Arcana (Talos)</option>
+                        <option value="SNOWY">❄️ Nieve (Auril)</option>
+                        <option value="MISTY">🌫️ Niebla (Infraoscuridad)</option>
+                    </select>
+                    <button class="action-btn" id="tempUnitToggleBtn" style="padding: 8px;">Unidad: °C / °F</button>
+                </div>
+                <input type="range" id="tempSlider" min="-5" max="40" value="22">
+            </div>
+
             <!-- Action Buttons -->
             <div class="btn-grid">
                 <button class="action-btn roll-main-btn" id="rollDiceBtn">🎲 LANZAR TIRADA D20</button>
@@ -653,9 +674,27 @@
         let rotationAngle = 0;
         let lastSettledData = null;
 
-        const particles = [];
         const RUNES = ["ᚠ", "ᚢ", "ᚦ", "ᚨ", "ᚱ", "ᚲ", "ᚷ", "ᚹ", "ᚺ", "ᚾ", "ᛁ", "ᛃ", "ᛇ", "ᛈ", "ᛉ", "ᛋ", "ᛏ", "ᛒ", "ᛖ", "ᛗ", "ᛚ", "ᛜ", "ᛞ", "ᛟ"];
         const FAERUN_MONTHS = ["Millofrío", "Las Garras", "La Puesta", "Las Tormentas", "El Deshielo", "Las Flores", "Mareasol", "El Alto Sol", "El Desvanecer", "La Caída", "El Abrazo", "El Dibujo"];
+        const particles = [];
+
+        // Weather state
+        const WEATHER_CONDITIONS = {
+            SUNNY: { glyph: '☀️', name: 'Despejado' },
+            PARTLY_CLOUDY: { glyph: '⛅', name: 'Nublado' },
+            CLOUDY: { glyph: '☁️', name: 'Brumoso' },
+            RAINY: { glyph: '🌧️', name: 'Lluvia' },
+            THUNDERSTORM: { glyph: '⛈️', name: 'Tormenta' },
+            SNOWY: { glyph: '❄️', name: 'Nieve' },
+            MISTY: { glyph: '🌫️', name: 'Niebla' }
+        };
+        let currentTempCelsius = 22;
+        let tempUnit = 'C';
+        let currentWeatherKey = 'SUNNY';
+
+        function getTempDisplay() {
+            return tempUnit === 'C' ? `${currentTempCelsius}°C` : `${Math.round(currentTempCelsius * 9/5 + 32)}°F`;
+        }
 
         function emitParticles(type, count) {
             const cx = canvas.width / 2;
@@ -724,9 +763,14 @@
                 return;
             }
 
-            // 5. Bottom (Date)
+            // 5. Bottom (Weather on left, Calendar on right)
             if (y > 330) {
-                calendarMode = calendarMode === 'GREGORIAN' ? 'FAERUN' : 'GREGORIAN';
+                if (x < cx) {
+                    tempUnit = tempUnit === 'C' ? 'F' : 'C';
+                    document.getElementById('tempLabel').innerText = getTempDisplay();
+                } else {
+                    calendarMode = calendarMode === 'GREGORIAN' ? 'FAERUN' : 'GREGORIAN';
+                }
                 playNormalClickSound();
                 return;
             }
@@ -781,6 +825,23 @@
         document.getElementById('xpSlider').oninput = (e) => {
             stepCount = parseInt(e.target.value);
             document.getElementById('xpLabel').innerText = `${stepCount.toLocaleString()} XP`;
+        };
+
+        // Weather Listeners
+        document.getElementById('tempSlider').oninput = (e) => {
+            currentTempCelsius = parseInt(e.target.value);
+            document.getElementById('tempLabel').innerText = getTempDisplay();
+        };
+
+        document.getElementById('weatherSelect').onchange = (e) => {
+            currentWeatherKey = e.target.value;
+            playNormalClickSound();
+        };
+
+        document.getElementById('tempUnitToggleBtn').onclick = () => {
+            tempUnit = tempUnit === 'C' ? 'F' : 'C';
+            document.getElementById('tempLabel').innerText = getTempDisplay();
+            playNormalClickSound();
         };
 
         const btnActive = document.getElementById('btnActiveMode');
@@ -906,9 +967,9 @@
                 ctx.font = 'bold 32px Cinzel, serif';
                 ctx.fillText(currentDisplayValue, cx, cy + 12);
 
-                ctx.font = '16px Inter, sans-serif';
-                ctx.fillStyle = '#666';
-                ctx.fillText(`${getDateString()} • HP ${Math.round(batteryLevel * 100)}%`, cx, h * 0.84);
+                ctx.font = '15px Inter, sans-serif';
+                ctx.fillStyle = '#777';
+                ctx.fillText(`${getDateString()} • ${getTempDisplay()} • HP ${Math.round(batteryLevel * 100)}%`, cx, h * 0.84);
                 return;
             }
 
@@ -1063,16 +1124,17 @@
             ctx.fillStyle = currentDisplayValue === 20 ? theme.goldLight : (currentDisplayValue === 1 ? theme.hpRuby : theme.goldPrimary);
             ctx.fillText(currentDisplayValue, d20X, d20Y + 13);
 
-            // Bottom Status
-            ctx.font = '16px Cinzel, serif';
+            // Bottom Status: Line 1 Date
+            ctx.font = '15px Cinzel, serif';
             ctx.fillStyle = theme.goldLight;
-            ctx.fillText(getDateString(), cx, h * 0.77);
+            ctx.fillText(getDateString(), cx, h * 0.76);
 
-            ctx.font = 'bold 16px Inter, sans-serif';
-            ctx.fillStyle = theme.hpRuby;
-            ctx.globalAlpha = 0.7 + 0.3 * breathing;
-            ctx.fillText('♥ 72 BPM', cx, h * 0.84);
-            ctx.globalAlpha = 1.0;
+            // Bottom Status: Line 2 Weather & Heart Rate dual bar
+            ctx.font = 'bold 13px Inter, sans-serif';
+            ctx.fillStyle = theme.goldLight;
+            const wObj = WEATHER_CONDITIONS[currentWeatherKey];
+            const bottomCombined = `${wObj.glyph} ${getTempDisplay()} ${wObj.name}  •  ♥ 72 BPM`;
+            ctx.fillText(bottomCombined, cx, h * 0.84);
 
             // Particles
             particles.forEach(p => {

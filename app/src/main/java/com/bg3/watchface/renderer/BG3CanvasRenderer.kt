@@ -52,6 +52,7 @@ class BG3CanvasRenderer(
     private val d20Geometry = D20Geometry()
     private val particleSystem = ParticleSystem(maxParticles = 120)
     val rollController = D20RollController(context, particleSystem)
+    val weatherManager = com.bg3.watchface.sensor.WeatherManager(initialTempCelsius = 22)
 
     // UX Customization State
     var currentTheme: ThemeVariant = ThemeVariant.CLASSIC_TAV
@@ -158,8 +159,9 @@ class BG3CanvasRenderer(
         }
         canvas.drawText(d20Text, centerX, centerY + paints.aodSubtextPaint.textSize * 0.35f, paints.aodSubtextPaint)
 
-        paints.aodSubtextPaint.textSize = width * 0.042f
-        val bottomInfo = "${zonedDateTime.format(dateFormatter).uppercase()}  •  HP ${(batteryLevel * 100).toInt()}%"
+        paints.aodSubtextPaint.textSize = width * 0.038f
+        val weatherTemp = weatherManager.weatherInfo.displayTemp
+        val bottomInfo = "${zonedDateTime.format(dateFormatter).uppercase()}  •  $weatherTemp  •  HP ${(batteryLevel * 100).toInt()}%"
         canvas.drawText(bottomInfo, centerX, height * 0.84f, paints.aodSubtextPaint)
     }
 
@@ -470,8 +472,8 @@ class BG3CanvasRenderer(
         width: Float,
         breathing: Float
     ) {
-        val dateY = height * 0.77f
-        val hrY = height * 0.85f
+        val dateY = height * 0.76f
+        val statusY = height * 0.84f
 
         val dateStr = if (calendarDisplayMode == CalendarDisplayMode.GREGORIAN) {
             zdt.format(dateFormatter).uppercase(Locale.getDefault())
@@ -480,14 +482,18 @@ class BG3CanvasRenderer(
             "${zdt.dayOfMonth} ${BG3Theme.FAERUN_MONTHS[monthIdx].uppercase()}"
         }
 
-        paints.subtextPaint.textSize = width * 0.038f
+        paints.subtextPaint.textSize = width * 0.036f
         paints.subtextPaint.color = currentTheme.goldLight
         canvas.drawText(dateStr, cx, dateY, paints.subtextPaint)
 
-        paints.heartRatePaint.textSize = width * 0.036f
-        paints.heartRatePaint.color = currentTheme.hpRuby
-        paints.heartRatePaint.alpha = (180 + (75 * breathing)).toInt().coerceIn(0, 255)
-        canvas.drawText("♥ 72 BPM", cx, hrY, paints.heartRatePaint)
+        // Weather & Heart Rate dual status
+        val weather = weatherManager.weatherInfo
+        val weatherText = "${weather.condition.glyph} ${weather.displayTemp} ${weather.condition.standardName}"
+        val bottomCombined = "$weatherText  •  ♥ 72 BPM"
+
+        paints.heartRatePaint.textSize = width * 0.032f
+        paints.heartRatePaint.color = currentTheme.goldLight
+        canvas.drawText(bottomCombined, cx, statusY, paints.heartRatePaint)
     }
 
     override fun renderHighlightLayer(canvas: Canvas, bounds: Rect, zonedDateTime: ZonedDateTime) {}
@@ -521,7 +527,7 @@ class BG3CanvasRenderer(
                 ty < height * 0.28f -> {
                     timeDisplayMode = if (timeDisplayMode == TimeDisplayMode.FORMAT_24H) TimeDisplayMode.FORMAT_12H else TimeDisplayMode.FORMAT_24H
                     currentTheme = currentTheme.next()
-                    radialBackgroundShader = null // reset shader for new theme colors
+                    radialBackgroundShader = null
                     invalidate()
                 }
 
@@ -541,9 +547,13 @@ class BG3CanvasRenderer(
                     invalidate()
                 }
 
-                // 6. Bottom Tap -> Toggle Gregorian / Faerûn Calendar
-                ty > height * 0.73f -> {
-                    calendarDisplayMode = if (calendarDisplayMode == CalendarDisplayMode.GREGORIAN) CalendarDisplayMode.FAERUN_LORE else CalendarDisplayMode.GREGORIAN
+                // 6. Bottom Tap -> Left side toggles Weather unit/condition, Right side toggles Calendar
+                ty > height * 0.72f -> {
+                    if (tx < cx) {
+                        weatherManager.toggleUnit()
+                    } else {
+                        calendarDisplayMode = if (calendarDisplayMode == CalendarDisplayMode.GREGORIAN) CalendarDisplayMode.FAERUN_LORE else CalendarDisplayMode.GREGORIAN
+                    }
                     invalidate()
                 }
             }
