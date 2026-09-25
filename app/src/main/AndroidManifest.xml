@@ -25,9 +25,14 @@
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
 
-        <!-- Baldur's Gate 3 Watch Face Service -->
+        <!-- Watch Face Format v1 Declaration for Wear OS 5 -->
+        <property
+            android:name="com.google.wear.watchface.format.version"
+            android:value="1" />
+
+        <!-- Native Watch Face Format Service -->
         <service
-            android:name=".BG3WatchFaceService"
+            android:name="com.google.android.wearable.watchface.WatchFaceService"
             android:directBootAware="true"
             android:exported="true"
             android:label="@string/watch_face_name"
@@ -51,12 +56,24 @@
                 android:name="com.google.android.wearable.watchface.preview_circular"
                 android:resource="@drawable/preview_bg3_watchface" />
 
-            <!-- Jetpack Watch Face Editor Configuration Action -->
-            <meta-data
-                android:name="com.google.android.wearable.watchface.wearableConfigurationAction"
-                android:value="androidx.wear.watchface.editor.action.WATCH_FACE_EDITOR" />
-
         </service>
+
+        <!-- Fullscreen Interactive 3D D20 Activity (Wear OS App Drawer + Watch Face Tap Action) -->
+        <activity
+            android:name=".BG3InteractiveActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.bg3.watchface.action.ROLL_D20" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
     </application>
 

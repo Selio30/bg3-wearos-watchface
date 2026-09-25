@@ -1,4 +1,4 @@
-package com.bg3.watchface.renderer
+package com.bg3.watchface.view
 
 import android.content.Context
 import android.graphics.Canvas
@@ -9,22 +9,21 @@ import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
-import android.view.SurfaceHolder
-import androidx.wear.watchface.CanvasType
-import androidx.wear.watchface.ComplicationSlot
-import androidx.wear.watchface.DrawMode
-import androidx.wear.watchface.RenderParameters
-import androidx.wear.watchface.Renderer
-import androidx.wear.watchface.TapEvent
-import androidx.wear.watchface.TapType
-import androidx.wear.watchface.WatchFace
-import androidx.wear.watchface.WatchState
-import androidx.wear.watchface.style.CurrentUserStyleRepository
+import android.view.MotionEvent
+import android.view.View
 import com.bg3.watchface.controller.D20RollController
 import com.bg3.watchface.controller.ParticleSystem
 import com.bg3.watchface.model.RollState
+import com.bg3.watchface.renderer.BatteryDisplayMode
+import com.bg3.watchface.renderer.BG3Theme
+import com.bg3.watchface.renderer.CalendarDisplayMode
+import com.bg3.watchface.renderer.D20Geometry
+import com.bg3.watchface.renderer.StepsDisplayMode
+import com.bg3.watchface.renderer.ThemeVariant
+import com.bg3.watchface.renderer.TimeDisplayMode
 import com.bg3.watchface.sensor.BatteryMonitor
 import com.bg3.watchface.sensor.StepSensorManager
+import com.bg3.watchface.sensor.WeatherManager
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -35,45 +34,23 @@ import kotlin.math.pow
 import kotlin.math.sin
 
 /**
- * Advanced Baldur's Gate 3 CanvasRenderer with multi-zone touch interactions,
- * Origin Companion Themes (Tav, Astarion, Shadowheart, Karlach), Faerûn lore calendar,
- * and D&D 5e DC ability checks.
+ * Interactive 60 FPS View for Wear OS hosting the full Baldur's Gate 3
+ * 3D D20 roll physics, particle explosions, companion themes, and touch interactions.
  */
-class BG3CanvasRenderer(
-    private val context: Context,
-    surfaceHolder: SurfaceHolder,
-    currentUserStyleRepository: CurrentUserStyleRepository,
-    watchState: WatchState,
-    canvasType: Int = CanvasType.HARDWARE
-) : Renderer.CanvasRenderer(
-    surfaceHolder = surfaceHolder,
-    currentUserStyleRepository = currentUserStyleRepository,
-    watchState = watchState,
-    canvasType = canvasType,
-    interactiveDrawModeUpdateDelayMillis = 33L
-), WatchFace.TapListener {
+class BG3InteractiveView(context: Context) : View(context) {
 
     private val paints = BG3Theme.PaintCache()
     private val d20Geometry = D20Geometry()
     private val particleSystem = ParticleSystem(maxParticles = 120)
     val rollController = D20RollController(context, particleSystem)
-    val weatherManager = com.bg3.watchface.sensor.WeatherManager(initialTempCelsius = 22)
+    val weatherManager = WeatherManager(initialTempCelsius = 22)
 
-    // UX Customization State
-    var currentTheme: ThemeVariant = ThemeVariant.CLASSIC_TAV
-        private set
+    private var currentTheme: ThemeVariant = ThemeVariant.CLASSIC_TAV
 
-    var batteryDisplayMode: BatteryDisplayMode = BatteryDisplayMode.PERCENTAGE
-        private set
-
-    var stepsDisplayMode: StepsDisplayMode = StepsDisplayMode.STEPS_XP
-        private set
-
-    var timeDisplayMode: TimeDisplayMode = TimeDisplayMode.FORMAT_24H
-        private set
-
-    var calendarDisplayMode: CalendarDisplayMode = CalendarDisplayMode.GREGORIAN
-        private set
+    private var timeDisplayMode = TimeDisplayMode.FORMAT_24H
+    private var batteryDisplayMode = BatteryDisplayMode.PERCENTAGE
+    private var stepsDisplayMode = StepsDisplayMode.STEPS_XP
+    private var calendarDisplayMode = CalendarDisplayMode.GREGORIAN
 
     // Sensors
     private var batteryLevel: Float = 1.0f
@@ -100,7 +77,7 @@ class BG3CanvasRenderer(
     private var runeRingAngle = 0f
     private val dashPathEffect = DashPathEffect(floatArrayOf(3f, 7f), 0f)
 
-    // Ambient floating motes / arcane embers
+    // Ambient floating motes
     private class AmbientMote(
         var x: Float = 0f,
         var y: Float = 0f,
@@ -116,156 +93,29 @@ class BG3CanvasRenderer(
     private val ambientMotes = Array(ambientMoteCount) { AmbientMote() }
     private var motesInitialized = false
 
-    // Formatters
-    private val time24Formatter = DateTimeFormatter.ofPattern("HH:mm")
-    private val time12Formatter = DateTimeFormatter.ofPattern("hh:mm a")
-    private val dateFormatter = DateTimeFormatter.ofPattern("EEE, d MMM", Locale.getDefault())
+    private val time24Formatter = DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+    private val time12Formatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
+    private val dateFormatter = DateTimeFormatter.ofPattern("EEE, dd MMM", Locale.US)
 
     init {
+        isFocusable = true
+        isClickable = true
         batteryMonitor.start()
         stepSensorManager.start()
     }
 
-    override fun onDestroy() {
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
         batteryMonitor.stop()
         stepSensorManager.stop()
-        super.onDestroy()
-    }
-
-    override fun shouldAnimate(): Boolean {
-        return renderParameters.drawMode == DrawMode.INTERACTIVE
-    }
-
-    override fun render(canvas: Canvas, bounds: Rect, zonedDateTime: ZonedDateTime) {
-        val width = bounds.width().toFloat()
-        val height = bounds.height().toFloat()
-        val centerX = bounds.exactCenterX()
-        val centerY = bounds.exactCenterY()
-        val d20Radius = width * 0.175f
-
-        val nowMs = System.currentTimeMillis()
-        val deltaSeconds = ((nowMs - lastFrameTimeMs).coerceIn(1L, 100L)).toFloat() / 1000f
-        lastFrameTimeMs = nowMs
-
-        val isRolling = rollController.currentState is RollState.Rolling
-        val spinSpeed = if (isRolling) 75f else 5.5f
-        runeRingAngle = (runeRingAngle + spinSpeed * deltaSeconds) % 360f
-
-        if (renderParameters.drawMode == DrawMode.AMBIENT) {
-            renderAmbientMode(canvas, bounds, zonedDateTime, centerX, centerY, d20Radius)
-        } else {
-            rollController.update(nowMs, centerX, centerY, deltaSeconds)
-            renderInteractiveMode(canvas, bounds, zonedDateTime, centerX, centerY, d20Radius, nowMs, deltaSeconds)
-        }
-    }
-
-    private fun renderAmbientMode(
-        canvas: Canvas,
-        bounds: Rect,
-        zonedDateTime: ZonedDateTime,
-        centerX: Float,
-        centerY: Float,
-        d20Radius: Float
-    ) {
-        canvas.drawColor(BG3Theme.COLOR_AOD_BLACK)
-        val width = bounds.width().toFloat()
-        val height = bounds.height().toFloat()
-
-        paints.aodTimePaint.textSize = width * 0.11f
-        val timeStr = if (timeDisplayMode == TimeDisplayMode.FORMAT_24H) {
-            zonedDateTime.format(time24Formatter)
-        } else {
-            zonedDateTime.format(time12Formatter)
-        }
-        canvas.drawText(timeStr, centerX, height * 0.215f, paints.aodTimePaint)
-
-        d20Geometry.drawAmbientD20(canvas, centerX, centerY, d20Radius * 0.95f, paints.aodD20StrokePaint)
-
-        paints.aodSubtextPaint.textSize = d20Radius * 0.50f
-        val d20Text = when (val state = rollController.currentState) {
-            is RollState.Settled -> state.value.toString()
-            is RollState.CriticalSuccess -> "20"
-            is RollState.CriticalFailure -> "1"
-            else -> "20"
-        }
-        canvas.drawText(d20Text, centerX, centerY + paints.aodSubtextPaint.textSize * 0.35f, paints.aodSubtextPaint)
-
-        paints.aodSubtextPaint.textSize = width * 0.033f
-        val weatherTemp = weatherManager.weatherInfo.displayTemp
-        val bottomInfo = "${zonedDateTime.format(dateFormatter).uppercase()}  •  $weatherTemp  •  HP ${(batteryLevel * 100).toInt()}%"
-        canvas.drawText(bottomInfo, centerX, height * 0.82f, paints.aodSubtextPaint)
-    }
-
-    private fun renderInteractiveMode(
-        canvas: Canvas,
-        bounds: Rect,
-        zonedDateTime: ZonedDateTime,
-        centerX: Float,
-        centerY: Float,
-        d20Radius: Float,
-        nowMs: Long,
-        deltaSeconds: Float
-    ) {
-        val width = bounds.width().toFloat()
-        val height = bounds.height().toFloat()
-
-        if (radialBackgroundShader == null || lastWidth != width || lastHeight != height) {
-            lastWidth = width
-            lastHeight = height
-            radialBackgroundShader = RadialGradient(
-                centerX, centerY, width * 0.55f,
-                intArrayOf(currentTheme.backgroundCore, BG3Theme.COLOR_BACKGROUND_DARK, BG3Theme.COLOR_BACKGROUND_VOID),
-                floatArrayOf(0f, 0.65f, 1.0f),
-                Shader.TileMode.CLAMP
-            )
-            initAmbientMotes(centerX, centerY, width)
-        }
-
-        val bgPaint = paints.d20FillPaint
-        bgPaint.shader = radialBackgroundShader
-        canvas.drawRect(0f, 0f, width, height, bgPaint)
-        bgPaint.shader = null
-
-        val elapsedSec = nowMs.toFloat() / 1000f
-        val breathing = (cos(elapsedSec * 2.2f) * 0.15f + 0.85f).coerceIn(0.6f, 1.0f)
-
-        // 1. Subtle Background Relief & Sacred Astral Geometry (faint rings, radial rays, gothic slate arches)
-        renderBackgroundRelief(canvas, centerX, centerY, width, breathing)
-
-        // 2. Ambient Floating Motes / Arcane Embers
-        updateAmbientMotes(deltaSeconds, centerX, centerY, width, nowMs)
-        renderAmbientMotes(canvas, centerX, centerY, nowMs)
-
-        // 3. Outer Arcane Summoning Ring
-        renderSummoningRing(canvas, centerX, centerY, width, breathing)
-
-        // 4. Left Arc: HP / Battery Gauge
-        renderHpGauge(canvas, centerX, centerY, width)
-
-        // 5. Right Arc: XP / Steps Gauge
-        renderXpGauge(canvas, centerX, centerY, width)
-
-        // 6. Top: Stylized Digital Clock
-        renderDigitalClock(canvas, zonedDateTime, centerX, height, width)
-
-        // 7. Ability Check / DC Pill Badge above D20
-        renderSkillCheckBadge(canvas, centerX, height * 0.272f, width)
-
-        // 8. Central D20 Die & Rolls
-        renderCentralD20(canvas, bounds, centerX, centerY, d20Radius, breathing)
-
-        // 9. Bottom: Date & Heart Rate
-        renderBottomStatus(canvas, zonedDateTime, centerX, height, width, breathing)
-
-        // 10. Particle System overlays
-        particleSystem.render(canvas)
     }
 
     private fun initAmbientMotes(cx: Float, cy: Float, width: Float) {
+        val maxDist = width * 0.44f
         val random = java.util.Random()
         for (m in ambientMotes) {
             val angle = random.nextFloat() * (Math.PI.toFloat() * 2f)
-            val dist = random.nextFloat() * (width * 0.42f)
+            val dist = random.nextFloat() * maxDist
             m.x = cx + cos(angle) * dist
             m.y = cy + sin(angle) * dist
             m.speedY = random.nextFloat() * 12f + 6f
@@ -277,6 +127,86 @@ class BG3CanvasRenderer(
             m.pulseSpeed = random.nextFloat() * 1.8f + 1.0f
         }
         motesInitialized = true
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val cx = w / 2f
+        val cy = h / 2f
+        lastWidth = w.toFloat()
+        lastHeight = h.toFloat()
+        radialBackgroundShader = RadialGradient(
+            cx, cy, w * 0.55f,
+            intArrayOf(currentTheme.backgroundCore, BG3Theme.COLOR_BACKGROUND_DARK, BG3Theme.COLOR_BACKGROUND_VOID),
+            floatArrayOf(0f, 0.65f, 1.0f),
+            Shader.TileMode.CLAMP
+        )
+        initAmbientMotes(cx, cy, w.toFloat())
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val width = width.toFloat()
+        val height = height.toFloat()
+        if (width <= 0f || height <= 0f) return
+
+        val centerX = width / 2f
+        val centerY = height / 2f
+        val d20Radius = width * 0.175f
+
+        val nowMs = System.currentTimeMillis()
+        val deltaSeconds = ((nowMs - lastFrameTimeMs).coerceIn(1L, 100L)).toFloat() / 1000f
+        lastFrameTimeMs = nowMs
+
+        val isRolling = rollController.currentState is RollState.Rolling
+        val spinSpeed = if (isRolling) 75f else 5.5f
+        runeRingAngle = (runeRingAngle + spinSpeed * deltaSeconds) % 360f
+
+        rollController.update(nowMs, centerX, centerY, deltaSeconds)
+
+        // Background
+        val bgPaint = paints.d20FillPaint
+        bgPaint.shader = radialBackgroundShader
+        canvas.drawRect(0f, 0f, width, height, bgPaint)
+        bgPaint.shader = null
+
+        val elapsedSec = nowMs.toFloat() / 1000f
+        val breathing = (cos(elapsedSec * 2.2f) * 0.15f + 0.85f).coerceIn(0.6f, 1.0f)
+
+        // 1. Background Relief
+        renderBackgroundRelief(canvas, centerX, centerY, width, breathing)
+
+        // 2. Ambient Floating Motes
+        updateAmbientMotes(deltaSeconds, centerX, centerY, width, nowMs)
+        renderAmbientMotes(canvas, centerX, centerY, nowMs)
+
+        // 3. Summoning Ring
+        renderSummoningRing(canvas, centerX, centerY, width, breathing)
+
+        // 4. HP Gauge
+        renderHpGauge(canvas, centerX, centerY, width)
+
+        // 5. XP Gauge
+        renderXpGauge(canvas, centerX, centerY, width)
+
+        // 6. Top Digital Clock
+        val zonedDateTime = ZonedDateTime.now()
+        renderDigitalClock(canvas, zonedDateTime, centerX, height, width)
+
+        // 7. Skill Check Badge
+        renderSkillCheckBadge(canvas, centerX, height * 0.272f, width)
+
+        // 8. Central 3D D20 Die & Rolls
+        renderCentralD20(canvas, centerX, centerY, d20Radius, breathing, width, height)
+
+        // 9. Bottom Status
+        renderBottomStatus(canvas, zonedDateTime, centerX, height, width)
+
+        // 10. Particle System
+        particleSystem.render(canvas)
+
+        // 60 FPS animation loop
+        postInvalidateOnAnimation()
     }
 
     private fun updateAmbientMotes(dt: Float, cx: Float, cy: Float, width: Float, nowMs: Long) {
@@ -315,26 +245,21 @@ class BG3CanvasRenderer(
     }
 
     private fun renderBackgroundRelief(canvas: Canvas, cx: Float, cy: Float, width: Float, breathing: Float) {
-        // A. Faint Concentric Sacred Astral Geometry Rings
         paints.bgReliefPaint.color = currentTheme.goldDark
         paints.bgReliefPaint.strokeWidth = 0.8f
 
-        // Ring 1: inner boundary
         paints.bgReliefPaint.alpha = (12 * breathing).toInt()
         paints.bgReliefPaint.pathEffect = null
         canvas.drawCircle(cx, cy, width * 0.23f, paints.bgReliefPaint)
 
-        // Ring 2: dashed middle celestial ring
         paints.bgReliefPaint.alpha = (18 * breathing).toInt()
         paints.bgReliefPaint.pathEffect = dashPathEffect
         canvas.drawCircle(cx, cy, width * 0.33f, paints.bgReliefPaint)
         paints.bgReliefPaint.pathEffect = null
 
-        // Ring 3: outer ring
         paints.bgReliefPaint.alpha = (12 * breathing).toInt()
         canvas.drawCircle(cx, cy, width * 0.41f, paints.bgReliefPaint)
 
-        // B. Subtle Astral Ray Lines (8 celestial axes)
         paints.bgReliefPaint.strokeWidth = 0.6f
         paints.bgReliefPaint.alpha = (10 * breathing).toInt()
         val rIn = width * 0.19f
@@ -344,29 +269,14 @@ class BG3CanvasRenderer(
         paints.bgReliefFillPaint.color = currentTheme.goldLight
         paints.bgReliefFillPaint.alpha = (25 * breathing).toInt()
 
-        for (i in 0 until 8) {
-            val ang = (i * Math.PI / 4.0).toFloat()
-            val cosA = cos(ang)
-            val sinA = sin(ang)
-            canvas.drawLine(
-                cx + cosA * rIn, cy + sinA * rIn,
-                cx + cosA * rOut, cy + sinA * rOut,
-                paints.bgReliefPaint
-            )
-            // Diamond nodes at intersection with dashed ring
+        val angles = floatArrayOf(0f, 45f, 90f, 135f, 180f, 225f, 270f, 315f)
+        for (a in angles) {
+            val ang = Math.toRadians(a.toDouble())
+            val cosA = cos(ang).toFloat()
+            val sinA = sin(ang).toFloat()
+            canvas.drawLine(cx + cosA * rIn, cy + sinA * rIn, cx + cosA * rOut, cy + sinA * rOut, paints.bgReliefPaint)
             canvas.drawCircle(cx + cosA * rMid, cy + sinA * rMid, 1.2f, paints.bgReliefFillPaint)
         }
-
-        // C. Interlocking Gothic Slate Arch Relief
-        paints.bgReliefPaint.color = currentTheme.goldPrimary
-        paints.bgReliefPaint.strokeWidth = 0.65f
-        paints.bgReliefPaint.alpha = (8 * breathing).toInt()
-        val arcRadius = width * 0.16f
-        val off = width * 0.08f
-        canvas.drawCircle(cx, cy - off, arcRadius, paints.bgReliefPaint)
-        canvas.drawCircle(cx, cy + off, arcRadius, paints.bgReliefPaint)
-        canvas.drawCircle(cx - off, cy, arcRadius, paints.bgReliefPaint)
-        canvas.drawCircle(cx + off, cy, arcRadius, paints.bgReliefPaint)
     }
 
     private fun renderSummoningRing(canvas: Canvas, cx: Float, cy: Float, width: Float, breathing: Float) {
@@ -571,13 +481,13 @@ class BG3CanvasRenderer(
 
     private fun renderCentralD20(
         canvas: Canvas,
-        bounds: Rect,
         centerX: Float,
         centerY: Float,
         radius: Float,
-        breathing: Float
+        breathing: Float,
+        width: Float,
+        height: Float
     ) {
-        val height = bounds.height().toFloat()
         var drawX = centerX
         var drawY = centerY
         val rotX = rollController.curRotX
@@ -626,7 +536,7 @@ class BG3CanvasRenderer(
             }
         }
 
-        // 1. Dynamic Drop Shadow underneath 3D die
+        // Drop Shadow
         val shadowY = centerY + radius * 0.74f
         val hopNorm = (abs(hopY) / 24f).coerceIn(0f, 1f)
         val shadowRadiusX = radius * (1.08f - 0.22f * hopNorm) * scaleX
@@ -637,7 +547,7 @@ class BG3CanvasRenderer(
         paints.bannerBgPaint.color = Color.argb(shadowAlpha, 0, 0, 0)
         canvas.drawOval(shadowBounds, paints.bannerBgPaint)
 
-        // 2. Arcane Impact Dual Shockwave Ripple
+        // Shockwave
         if (rollController.shockwaveProgress < 1f) {
             val swProgress = rollController.shockwaveProgress
             val swRadius1 = 20f + (radius * 2.2f - 20f) * swProgress.pow(0.60f)
@@ -658,7 +568,7 @@ class BG3CanvasRenderer(
             canvas.drawCircle(centerX, centerY, swRadius2, paints.arcGlowPaint)
         }
 
-        // 3. Render 3D Icosahedron (D20)
+        // 3D Icosahedron
         d20Geometry.drawActiveD20(
             canvas = canvas,
             centerX = drawX,
@@ -682,30 +592,23 @@ class BG3CanvasRenderer(
     }
 
     private fun renderBanner(canvas: Canvas, x: Float, y: Float, text: String, accentColor: Int) {
-        paints.bannerTextPaint.textSize = 13.5f
+        paints.bannerTextPaint.textSize = width * 0.038f
         paints.bannerTextPaint.getTextBounds(text, 0, text.length, textBounds)
-        val bannerW = textBounds.width() + 28f
-        val bannerH = textBounds.height() + 12f
+        val bannerW = textBounds.width() + 34f
+        val bannerH = textBounds.height() + 16f
 
         val rect = RectF(x - bannerW / 2f, y - bannerH / 2f, x + bannerW / 2f, y + bannerH / 2f)
         paints.bannerBgPaint.color = Color.parseColor("#E60A0A0E")
-        canvas.drawRoundRect(rect, 6f, 6f, paints.bannerBgPaint)
+        canvas.drawRoundRect(rect, 8f, 8f, paints.bannerBgPaint)
 
         paints.d20InnerStrokePaint.color = accentColor
-        canvas.drawRoundRect(rect, 6f, 6f, paints.d20InnerStrokePaint)
+        canvas.drawRoundRect(rect, 8f, 8f, paints.d20InnerStrokePaint)
 
         paints.bannerTextPaint.color = accentColor
         canvas.drawText(text, x, y + textBounds.height() * 0.35f, paints.bannerTextPaint)
     }
 
-    private fun renderBottomStatus(
-        canvas: Canvas,
-        zdt: ZonedDateTime,
-        cx: Float,
-        height: Float,
-        width: Float,
-        breathing: Float
-    ) {
+    private fun renderBottomStatus(canvas: Canvas, time: ZonedDateTime, cx: Float, height: Float, width: Float) {
         val isSettledOrCritical = rollController.currentState is RollState.Settled ||
                 rollController.currentState is RollState.CriticalSuccess ||
                 rollController.currentState is RollState.CriticalFailure
@@ -716,12 +619,13 @@ class BG3CanvasRenderer(
 
         if (!isSettledOrCritical) {
             val dateText = if (calendarDisplayMode == CalendarDisplayMode.GREGORIAN) {
-                zdt.format(dateFormatter).uppercase(Locale.getDefault())
+                time.format(dateFormatter).uppercase()
             } else {
-                val monthIdx = zdt.monthValue - 1
-                "${zdt.dayOfMonth} ${BG3Theme.FAERUN_MONTHS[monthIdx].uppercase()}"
+                val day = time.dayOfMonth
+                val monthIdx = (time.monthValue - 1).coerceIn(0, 11)
+                val monthName = BG3Theme.FAERUN_MONTHS[monthIdx].uppercase()
+                "$day DE $monthName"
             }
-
             val dateY = height * 0.805f
             paints.subtextPaint.textSize = width * 0.038f
             paints.subtextPaint.color = currentTheme.goldLight
@@ -739,48 +643,55 @@ class BG3CanvasRenderer(
         }
     }
 
-    override fun renderHighlightLayer(canvas: Canvas, bounds: Rect, zonedDateTime: ZonedDateTime) {}
-
-    override fun onTapEvent(tapType: Int, tapEvent: TapEvent, complicationSlot: ComplicationSlot?) {
-        if (tapType == TapType.UP) {
-            val bounds = surfaceHolder.surfaceFrame
-            val cx = bounds.exactCenterX()
-            val cy = bounds.exactCenterY()
-            val width = bounds.width().toFloat()
-            val height = bounds.height().toFloat()
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_UP) {
+            val cx = width / 2f
+            val cy = height / 2f
             val d20Radius = width * 0.175f
-
-            val tx = tapEvent.xPos.toFloat()
-            val ty = tapEvent.yPos.toFloat()
+            val tx = event.x
+            val ty = event.y
 
             when {
-                // 1. D20 Tap -> Roll Dice
+                // 1. D20 Tap -> Roll 3D Dice
                 rollController.isD20Tapped(tx, ty, cx, cy, d20Radius) -> {
                     rollController.triggerRoll(System.currentTimeMillis(), cx, cy)
                     invalidate()
                 }
 
-                // 2. Skill check / DC Badge Tap -> Cycle Ability
+                // 2. DC Badge Tap -> Cycle Ability
                 ty in (height * 0.25f)..(height * 0.33f) && tx in (cx - width * 0.38f)..(cx + width * 0.38f) -> {
                     rollController.cycleAbility()
                     invalidate()
                 }
 
-                // 3. Top Clock Tap -> Toggle 24h / 12h & Theme
+                // 3. Top Header Tap -> Cycle Companion Theme
                 ty < height * 0.25f -> {
-                    timeDisplayMode = if (timeDisplayMode == TimeDisplayMode.FORMAT_24H) TimeDisplayMode.FORMAT_12H else TimeDisplayMode.FORMAT_24H
                     currentTheme = currentTheme.next()
                     radialBackgroundShader = null
+                    val cxF = width / 2f
+                    val cyF = height / 2f
+                    radialBackgroundShader = RadialGradient(
+                        cxF, cyF, width * 0.55f,
+                        intArrayOf(currentTheme.backgroundCore, BG3Theme.COLOR_BACKGROUND_DARK, BG3Theme.COLOR_BACKGROUND_VOID),
+                        floatArrayOf(0f, 0.65f, 1.0f),
+                        Shader.TileMode.CLAMP
+                    )
                     invalidate()
                 }
 
-                // 4. Left Arc / HP Badge Tap -> Toggle Battery Mode
+                // 4. Outcome Banner Tap -> Also triggers roll
+                ty in (height * 0.70f)..(height * 0.78f) -> {
+                    rollController.triggerRoll(System.currentTimeMillis(), cx, cy)
+                    invalidate()
+                }
+
+                // 5. Left Arc / HP Badge Tap -> Toggle battery mode
                 tx < cx - width * 0.16f && ty in (cy - width * 0.25f)..(cy + width * 0.25f) -> {
                     batteryDisplayMode = if (batteryDisplayMode == BatteryDisplayMode.PERCENTAGE) BatteryDisplayMode.REMAINING_HOURS else BatteryDisplayMode.PERCENTAGE
                     invalidate()
                 }
 
-                // 5. Right Arc / XP Badge Tap -> Toggle Steps / Distance / Calories
+                // 6. Right Arc / XP Badge Tap -> Toggle steps mode
                 tx > cx + width * 0.16f && ty in (cy - width * 0.25f)..(cy + width * 0.25f) -> {
                     stepsDisplayMode = when (stepsDisplayMode) {
                         StepsDisplayMode.STEPS_XP -> StepsDisplayMode.DISTANCE_KM
@@ -790,7 +701,7 @@ class BG3CanvasRenderer(
                     invalidate()
                 }
 
-                // 6. Bottom Tap -> Left side toggles Weather unit/condition, Right side toggles Calendar
+                // 7. Bottom Status Tap -> Toggle weather unit or calendar lore
                 ty > height * 0.77f -> {
                     if (tx < cx) {
                         weatherManager.toggleUnit()
@@ -801,5 +712,6 @@ class BG3CanvasRenderer(
                 }
             }
         }
+        return true
     }
 }

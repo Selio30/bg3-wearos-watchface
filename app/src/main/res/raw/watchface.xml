@@ -1,0 +1,131 @@
+<WatchFace width="466" height="466">
+    <Metadata key="CLOCK_TYPE" value="DIGITAL" />
+    <Metadata key="PREVIEW_TIME" value="10:08:32" />
+
+    <UserConfigurations>
+        <ColorConfiguration id="theme" displayName="Companion Theme" defaultValue="tav">
+            <ColorOption id="tav" displayName="Tav (Arcane Gold)" colors="#FFD4AF37 #FF6B2D8C #FF0A0B10" />
+            <ColorOption id="astarion" displayName="Astarion (Crimson)" colors="#FFE0E0E0 #FF8B0000 #FF0A0B10" />
+            <ColorOption id="shadowheart" displayName="Shadowheart (Trickery)" colors="#FF4CC9F0 #FF1A365D #FF0A0B10" />
+            <ColorOption id="karlach" displayName="Karlach (Infernal)" colors="#FFCD7F32 #FFE25822 #FF0A0B10" />
+        </ColorConfiguration>
+    </UserConfigurations>
+
+    <Scene backgroundColor="#FF0A0B10">
+        <!-- Outer Golden Ornamental Ring -->
+        <PartDraw x="0" y="0" width="466" height="466">
+            <Ellipse x="4" y="4" width="458" height="458">
+                <Stroke color="#FFD4AF37" thickness="4" />
+            </Ellipse>
+            <Ellipse x="14" y="14" width="438" height="438">
+                <Stroke color="#66D4AF37" thickness="2" />
+            </Ellipse>
+        </PartDraw>
+
+        <!-- Continuous Rotating Arcane Rune Group (Animates in hardware compositor) -->
+        <Group x="23" y="23" width="420" height="420" id="rune_ring">
+            <Transform mode="TO_ANGULAR" value="([SECOND] + [MILLISECOND] / 1000.0) * 6" />
+            <PartDraw x="0" y="0" width="420" height="420">
+                <Line x1="210" y1="4" x2="210" y2="16"><Stroke color="#FFF5D77F" thickness="3" /></Line>
+                <Line x1="313" y1="31" x2="307" y2="42"><Stroke color="#FFD4AF37" thickness="2" /></Line>
+                <Line x1="389" y1="107" x2="378" y2="113"><Stroke color="#FFD4AF37" thickness="2" /></Line>
+                <Line x1="416" y1="210" x2="404" y2="210"><Stroke color="#FFF5D77F" thickness="3" /></Line>
+                <Line x1="389" y1="313" x2="378" y2="307"><Stroke color="#FFD4AF37" thickness="2" /></Line>
+                <Line x1="313" y1="389" x2="307" y2="378"><Stroke color="#FFD4AF37" thickness="2" /></Line>
+                <Line x1="210" y1="416" x2="210" y2="404"><Stroke color="#FFF5D77F" thickness="3" /></Line>
+                <Line x1="107" y1="389" x2="113" y2="378"><Stroke color="#FFD4AF37" thickness="2" /></Line>
+                <Line x1="31" y1="313" x2="42" y2="307"><Stroke color="#FFD4AF37" thickness="2" /></Line>
+                <Line x1="4" y1="210" x2="16" y2="210"><Stroke color="#FFF5D77F" thickness="3" /></Line>
+                <Line x1="31" y1="107" x2="42" y2="113"><Stroke color="#FFD4AF37" thickness="2" /></Line>
+                <Line x1="107" y1="31" x2="113" y2="42"><Stroke color="#FFD4AF37" thickness="2" /></Line>
+            </PartDraw>
+        </Group>
+
+        <!-- Digital Time Display (Enlarged) -->
+        <DigitalClock x="83" y="52" width="300" height="70">
+            <TimeText format="HH:mm" align="CENTER">
+                <Font family="SYNC_TO_DEVICE" size="62" color="#FFF2D082" weight="BOLD" />
+            </TimeText>
+        </DigitalClock>
+
+        <!-- Seconds Display -->
+        <PartText x="83" y="122" width="300" height="26">
+            <Text align="CENTER">
+                <Template>: %02d</Template>
+                <Parameter expression="[SECOND]" />
+            </Text>
+            <Font family="SYNC_TO_DEVICE" size="16" color="#FFD4AF37" weight="BOLD" />
+        </PartText>
+
+        <!-- Faerûn Date Lore -->
+        <PartText x="83" y="148" width="300" height="24">
+            <Text align="CENTER">
+                <Template>%s, %02d %s</Template>
+                <Parameter expression="[DAY_OF_WEEK_S]" />
+                <Parameter expression="[DAY_OF_MONTH]" />
+                <Parameter expression="[MONTH_S]" />
+            </Text>
+            <Font family="SYNC_TO_DEVICE" size="15" color="#FFB89738" />
+        </PartText>
+
+        <!-- Central D20 Die (Enlarged to 180x180, +20% larger) -->
+        <Group x="143" y="172" width="180" height="180" id="d20_die_group">
+            <Transform mode="SCALE_X" value="1.0 + 0.02 * sin(([SECOND] + [MILLISECOND] / 1000.0) * 2.0)" />
+            <Transform mode="SCALE_Y" value="1.0 + 0.02 * sin(([SECOND] + [MILLISECOND] / 1000.0) * 2.0)" />
+
+            <PartDraw x="0" y="0" width="180" height="180">
+                <Ellipse x="5" y="5" width="170" height="170">
+                    <Fill color="#FF14101E" />
+                    <Stroke color="#FFD4AF37" thickness="3" />
+                </Ellipse>
+                <Ellipse x="12" y="12" width="156" height="156">
+                    <Stroke color="#88F5D77F" thickness="1" />
+                </Ellipse>
+            </PartDraw>
+
+            <PartText x="0" y="40" width="180" height="70">
+                <Text align="CENTER">
+                    <Template>20</Template>
+                </Text>
+                <Font family="SYNC_TO_DEVICE" size="56" color="#FFF5D77F" weight="BOLD" />
+            </PartText>
+
+            <PartText x="0" y="118" width="180" height="28">
+                <Text align="CENTER">
+                    <Template>⚔ TIRAR ⚔</Template>
+                </Text>
+                <Font family="SYNC_TO_DEVICE" size="15" color="#FFD4AF37" weight="BOLD" />
+            </PartText>
+
+            <!-- Tapping launches the full 3D interactive Baldur's Gate 3 rolling activity -->
+            <Launch targetPackage="com.bg3.watchface.debug" targetClass="com.bg3.watchface.BG3InteractiveActivity" />
+        </Group>
+
+        <!-- Left Side Integrated HP Stat Indicator -->
+        <PartText x="15" y="240" width="120" height="52">
+            <Text align="CENTER">
+                <Template>♥ HP&#10;%d%%</Template>
+                <Parameter expression="[BATTERY_PERCENT]" />
+            </Text>
+            <Font family="SYNC_TO_DEVICE" size="16" color="#FFE63946" weight="BOLD" />
+        </PartText>
+
+        <!-- Right Side Integrated XP / Steps Indicator -->
+        <PartText x="331" y="240" width="120" height="52">
+            <Text align="CENTER">
+                <Template>✦ XP&#10;%d</Template>
+                <Parameter expression="[STEP_COUNT]" />
+            </Text>
+            <Font family="SYNC_TO_DEVICE" size="16" color="#FF4CC9F0" weight="BOLD" />
+        </PartText>
+
+        <!-- Bottom Heart Rate Complication -->
+        <PartText x="83" y="380" width="300" height="28">
+            <Text align="CENTER">
+                <Template>♦ %d BPM</Template>
+                <Parameter expression="[HEART_RATE]" />
+            </Text>
+            <Font family="SYNC_TO_DEVICE" size="16" color="#FFF5D77F" weight="BOLD" />
+        </PartText>
+    </Scene>
+</WatchFace>

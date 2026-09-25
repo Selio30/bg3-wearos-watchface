@@ -133,7 +133,7 @@ object BG3Theme {
         }
 
         val subtextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = TYPEFACE_SERIF_NORMAL
+            typeface = TYPEFACE_SERIF_BOLD
             textAlign = Paint.Align.CENTER
         }
         val heartRatePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

@@ -226,10 +226,10 @@ class D20RollController(
                         curRotZ = spinAt900Z * easeSettle
                     }
 
-                    // Vertical Hop & Scale Depth
+                    // Vertical Hop & Scale Depth (calibrated for watch screen ergonomics)
                     val hopSine = sin(progress * PI.toFloat())
-                    hopY = -24f * hopSine * (1f - progress).pow(0.4f)
-                    val scaleBounce = 1f + 0.14f * hopSine
+                    hopY = -12f * hopSine * (1f - progress).pow(0.4f)
+                    val scaleBounce = 1f + 0.10f * hopSine
                     scaleX = scaleBounce
                     scaleY = scaleBounce
 
