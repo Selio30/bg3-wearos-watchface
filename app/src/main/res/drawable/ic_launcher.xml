@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Dark Circle Background -->
+    <path
+        android:fillColor="#0A0A0E"
+        android:pathData="M24,24m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0" />
+    <!-- Outer Gold Ring -->
+    <path
+        android:strokeColor="#D4AF37"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000"
+        android:pathData="M24,24m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0" />
+    <!-- D20 Outline Shape -->
+    <path
+        android:strokeColor="#F5D77F"
+        android:strokeWidth="1.2"
+        android:fillColor="#1F1A24"
+        android:pathData="M24,8 L36,16 L36,32 L24,40 L12,32 L12,16 Z" />
+    <!-- D20 Facet Lines -->
+    <path
+        android:strokeColor="#D4AF37"
+        android:strokeWidth="1"
+        android:pathData="M24,8 L24,24 M36,16 L24,24 M36,32 L24,24 M24,40 L24,24 M12,32 L24,24 M12,16 L24,24" />
+    <path
+        android:strokeColor="#D4AF37"
+        android:strokeWidth="0.8"
+        android:pathData="M24,8 L36,32 M36,16 L12,16 M24,40 L12,16" />
+</vector>

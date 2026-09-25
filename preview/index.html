@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BG3 Watch Face Simulator — OnePlus Watch 3</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Cinzel+Decorative:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0A0A0E;
+            --bg-panel: rgba(18, 16, 26, 0.85);
+            --gold-primary: #D4AF37;
+            --gold-light: #F5D77F;
+            --gold-dark: #8C6F2D;
+            --hp-ruby: #E63946;
+            --hp-dark: #380505;
+            --xp-cyan: #4CC9F0;
+            --xp-purple: #7209B7;
+            --xp-dark: #1A0738;
+            --text-silver: #D1D1DE;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        body {
+            background: radial-gradient(circle at 50% 30%, #171126 0%, #0A0A0E 70%, #030305 100%);
+            color: var(--text-silver);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+            overflow-x: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        header h1 {
+            font-family: 'Cinzel Decorative', serif;
+            font-size: 2.2rem;
+            color: var(--gold-light);
+            text-shadow: 0 0 16px rgba(212, 175, 55, 0.4), 0 2px 4px #000;
+            letter-spacing: 2px;
+        }
+
+        header p {
+            color: #A098B5;
+            font-size: 0.95rem;
+            margin-top: 6px;
+        }
+
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 40px;
+            align-items: center;
+            justify-content: center;
+            max-width: 1100px;
+            width: 100%;
+        }
+
+        /* Smartwatch Bezel Housing */
+        .watch-case {
+            position: relative;
+            width: 480px;
+            height: 480px;
+            background: radial-gradient(circle, #25242E 50%, #15141D 80%, #0D0C14 100%);
+            border-radius: 50%;
+            padding: 14px;
+            box-shadow: 
+                0 25px 60px rgba(0, 0, 0, 0.9),
+                0 0 0 1px rgba(212, 175, 55, 0.25),
+                inset 0 0 12px rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hardware Crown Buttons */
+        .watch-case::before {
+            content: '';
+            position: absolute;
+            right: -10px;
+            top: 130px;
+            width: 12px;
+            height: 38px;
+            background: linear-gradient(to right, #444, #777, #333);
+            border-radius: 4px;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.6);
+        }
+
+        .watch-case::after {
+            content: '';
+            position: absolute;
+            right: -14px;
+            top: 215px;
+            width: 16px;
+            height: 52px;
+            background: linear-gradient(to right, #333, #888, #222);
+            border-radius: 5px;
+            box-shadow: 2px 2px 8px rgba(0,0,0,0.7);
+        }
+
+        /* Watch Canvas Screen */
+        #watchCanvas {
+            width: 450px;
+            height: 450px;
+            border-radius: 50%;
+            background: #000;
+            cursor: pointer;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.95);
+        }
+
+        /* Control Panel */
+        .control-panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(212, 175, 55, 0.25);
+            border-radius: 16px;
+            padding: 24px;
+            width: 380px;
+            box-shadow: 0 16px 36px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1.2rem;
+            color: var(--gold-light);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: #C2BED4;
+        }
+
+        .control-label span:last-child {
+            font-weight: 600;
+            color: var(--gold-light);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #252233;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--gold-primary);
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(212, 175, 55, 0.8);
+        }
+
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #2A243D 0%, #1A1528 100%);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            color: var(--gold-light);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-family: 'Cinzel', serif;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .action-btn:hover {
+            border-color: var(--gold-primary);
+            box-shadow: 0 0 12px rgba(212, 175, 55, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .action-btn.active {
+            background: linear-gradient(135deg, #D4AF37 0%, #8C6F2D 100%);
+            color: #0A0A0E;
+            font-weight: 700;
+            border-color: #FFF;
+        }
+
+        .roll-btn {
+            grid-column: span 2;
+            padding: 14px;
+            font-size: 1rem;
+            background: linear-gradient(135deg, #7A1C1C 0%, #3D0C0C 100%);
+            border-color: #E63946;
+            color: #FFF;
+            box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3);
+        }
+
+        .roll-btn:hover {
+            border-color: #FF7B88;
+            box-shadow: 0 0 20px rgba(230, 57, 70, 0.6);
+        }
+
+        .instructions {
+            font-size: 0.8rem;
+            color: #8C86A3;
+            line-height: 1.5;
+            background: rgba(10, 10, 14, 0.6);
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 3px solid var(--gold-primary);
+        }
+
+        .instructions strong {
+            color: var(--gold-light);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>BALDUR'S GATE III</h1>
+        <p>Simulador Interactivo de Esfera Wear OS — OnePlus Watch 3 (450x450 AMOLED)</p>
+    </header>
+
+    <div class="main-container">
+        <!-- Watch Hardware Housing -->
+        <div class="watch-case">
+            <canvas id="watchCanvas" width="450" height="450"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div class="control-panel">
+            <div class="panel-title">
+                <span>Panel de Control</span>
+                <span style="font-size: 0.8rem; color: var(--gold-primary);">Canvas 30 FPS</span>
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Salud (HP / Batería)</span>
+                    <span id="hpValue">85%</span>
+                </div>
+                <input type="range" id="hpSlider" min="0" max="100" value="85">
+            </div>
+
+            <div class="control-group">
+                <div class="control-label">
+                    <span>Experiencia (XP / Pasos)</span>
+                    <span id="xpValue">7,420</span>
+                </div>
+                <input type="range" id="xpSlider" min="0" max="15000" value="7420">
+            </div>
+
+            <div class="btn-grid">
+                <button class="action-btn roll-btn" id="rollD20Btn">🎲 TIRADA DE SALVACIÓN D20</button>
+                <button class="action-btn" id="forceNat20Btn">⭐ Éxito Crítico (20)</button>
+                <button class="action-btn" id="forceNat1Btn">💀 Pifia Crítica (1)</button>
+                <button class="action-btn active" id="modeActiveBtn">Modo Activo</button>
+                <button class="action-btn" id="modeAodBtn">Modo AOD (Ahorro)</button>
+            </div>
+
+            <div class="instructions">
+                💡 <strong>Interactividad:</strong> Haz clic directamente sobre el <strong>Dado D20 central</strong> para lanzar la tirada. Las partículas y los destellos son idénticos a los renderizados por el código Kotlin en Wear OS.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('watchCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // State variables
+        let isAmbient = false;
+        let batteryLevel = 0.85;
+        let stepCount = 7420;
+        const stepGoal = 10000;
+
+        // Roll State Machine: 'IDLE', 'ROLLING', 'CRITICAL_SUCCESS', 'CRITICAL_FAIL', 'SETTLED'
+        let rollState = 'IDLE';
+        let rollStartTime = 0;
+        let stateStartTime = 0;
+        let currentDisplayValue = 20;
+        let forcedOutcome = null; // null, 20, or 1
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+        let rotationAngle = 0;
+
+        // Particles
+        const particles = [];
+        const MAX_PARTICLES = 120;
+
+        // Colors
+        const COLOR_GOLD_PRIMARY = '#D4AF37';
+        const COLOR_GOLD = '#D4AF37';
+        const COLOR_GOLD_LIGHT = '#F5D77F';
+        const COLOR_GOLD_DARK = '#8C6F2D';
+        const COLOR_HP_RUBY = '#E63946';
+        const COLOR_HP_DARK = '#380505';
+        const COLOR_XP_CYAN = '#4CC9F0';
+        const COLOR_XP_PURPLE = '#7209B7';
+        const COLOR_XP_DARK = '#1A0738';
+        const COLOR_AOD_GOLD = '#554522';
+        const COLOR_AOD_TEXT = '#AAAAAA';
+
+        const RUNES = ["ᚠ", "ᚢ", "ᚦ", "ᚨ", "ᚱ", "ᚲ", "ᚷ", "ᚹ", "ᚺ", "ᚾ", "ᛁ", "ᛃ", "ᛇ", "ᛈ", "ᛉ", "ᛋ", "ᛏ", "ᛒ", "ᛖ", "ᛗ", "ᛚ", "ᛜ", "ᛞ", "ᛟ"];
+
+        // Particle Emitter
+        function emitParticles(type, count) {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = type === 'GOLD' ? Math.random() * 160 + 70 : Math.random() * 60 + 20;
+                particles.push({
+                    x: centerX,
+                    y: centerY,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: type === 'GOLD' ? Math.random() * 4 + 2 : Math.random() * 8 + 4,
+                    color: type === 'GOLD' ? (Math.random() > 0.4 ? '#FFF1A8' : '#D4AF37') : (Math.random() > 0.4 ? '#E63946' : '#500707'),
+                    alpha: 1.0,
+                    life: 0,
+                    maxLife: type === 'GOLD' ? 0.9 : 1.4,
+                    type: type
+                });
+            }
+        }
+
+        function triggerRoll(forced = null) {
+            if (rollState === 'ROLLING') return;
+            forcedOutcome = forced;
+            rollState = 'ROLLING';
+            rollStartTime = performance.now();
+            particles.length = 0;
+        }
+
+        // Tap listener on D20
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const dist = Math.hypot(x - canvas.width / 2, y - canvas.height / 2);
+            if (dist <= 75) {
+                triggerRoll();
+            }
+        });
+
+        // UI Event Listeners
+        document.getElementById('rollD20Btn').onclick = () => triggerRoll();
+        document.getElementById('forceNat20Btn').onclick = () => triggerRoll(20);
+        document.getElementById('forceNat1Btn').onclick = () => triggerRoll(1);
+
+        document.getElementById('hpSlider').oninput = (e) => {
+            batteryLevel = e.target.value / 100;
+            document.getElementById('hpValue').innerText = `${e.target.value}%`;
+        };
+
+        document.getElementById('xpSlider').oninput = (e) => {
+            stepCount = parseInt(e.target.value);
+            document.getElementById('xpValue').innerText = stepCount.toLocaleString();
+        };
+
+        const modeActiveBtn = document.getElementById('modeActiveBtn');
+        const modeAodBtn = document.getElementById('modeAodBtn');
+
+        modeActiveBtn.onclick = () => {
+            isAmbient = false;
+            modeActiveBtn.classList.add('active');
+            modeAodBtn.classList.remove('active');
+        };
+
+        modeAodBtn.onclick = () => {
+            isAmbient = true;
+            modeAodBtn.classList.add('active');
+            modeActiveBtn.classList.remove('active');
+        };
+
+        // Main Animation Loop
+        let lastTime = performance.now();
+
+        function renderLoop(now) {
+            const dt = (now - lastTime) / 1000;
+            lastTime = now;
+
+            // Update Roll State
+            if (rollState === 'ROLLING') {
+                const elapsed = now - rollStartTime;
+                if (elapsed >= 1300) {
+                    const result = forcedOutcome !== null ? forcedOutcome : Math.floor(Math.random() * 20) + 1;
+                    forcedOutcome = null;
+                    stateStartTime = now;
+                    currentDisplayValue = result;
+
+                    if (result === 20) {
+                        rollState = 'CRITICAL_SUCCESS';
+                        emitParticles('GOLD', 55);
+                    } else if (result === 1) {
+                        rollState = 'CRITICAL_FAIL';
+                        emitParticles('CRIMSON', 45);
+                    } else {
+                        rollState = 'SETTLED';
+                    }
+                    shakeOffsetX = 0;
+                    shakeOffsetY = 0;
+                    rotationAngle = 0;
+                } else {
+                    const progress = elapsed / 1300;
+                    const remaining = 1 - progress;
+                    shakeOffsetX = (Math.random() - 0.5) * 24 * remaining;
+                    shakeOffsetY = (Math.random() - 0.5) * 24 * remaining;
+                    rotationAngle = (elapsed * 0.45 * remaining) % 360;
+
+                    if (Math.random() > 0.45) {
+                        currentDisplayValue = Math.floor(Math.random() * 20) + 1;
+                    }
+                }
+            } else if (rollState !== 'IDLE') {
+                const elapsed = now - stateStartTime;
+                if (elapsed > 4000) {
+                    rollState = 'IDLE';
+                }
+            }
+
+            // Update Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life += dt;
+                if (p.life >= p.maxLife) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                if (p.type === 'GOLD') {
+                    p.vx *= 0.94;
+                    p.vy = p.vy * 0.94 + 30 * dt;
+                } else {
+                    p.vx *= 0.92;
+                    p.vy = p.vy * 0.92 - 15 * dt;
+                    p.size += 14 * dt;
+                }
+                p.alpha = 1 - (p.life / p.maxLife);
+            }
+
+            // Draw Watch Face
+            drawWatchFace(now);
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawWatchFace(now) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+            const d20Radius = 74;
+
+            if (isAmbient) {
+                // AMBIENT MODE (Strict AOD < 10% OPR)
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, w, h);
+
+                // Digital Clock
+                ctx.fillStyle = COLOR_AOD_TEXT;
+                ctx.font = 'bold 54px Cinzel, serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(getTimeString(), cx, h * 0.22);
+
+                // Wireframe D20
+                drawD20Wireframe(cx, cy, d20Radius, COLOR_AOD_GOLD);
+
+                // Number
+                ctx.fillStyle = COLOR_AOD_TEXT;
+                ctx.font = 'bold 32px Cinzel, serif';
+                ctx.fillText(currentDisplayValue, cx, cy + 12);
+
+                // Date & Battery minimal
+                ctx.font = '16px Inter, sans-serif';
+                ctx.fillStyle = '#666';
+                ctx.fillText(`25 SEP  •  HP ${Math.round(batteryLevel * 100)}%`, cx, h * 0.84);
+                return;
+            }
+
+            // ACTIVE MODE
+            // 1. Arcane Background
+            const bgGrad = ctx.createRadialGradient(cx, cy, 30, cx, cy, w * 0.55);
+            bgGrad.addColorStop(0, '#151224');
+            bgGrad.addColorStop(0.65, '#0A0A0E');
+            bgGrad.addColorStop(1, '#040407');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            const breathing = Math.cos(now / 1000 * 2.2) * 0.15 + 0.85;
+
+            // 2. Outer Runic Ring
+            ctx.strokeStyle = COLOR_GOLD_DARK;
+            ctx.lineWidth = 1.2;
+            ctx.globalAlpha = 0.5 * breathing;
+            ctx.beginPath();
+            ctx.arc(cx, cy, w * 0.445, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.lineWidth = 0.8;
+            ctx.beginPath();
+            ctx.arc(cx, cy, w * 0.405, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Runes
+            ctx.fillStyle = COLOR_GOLD_LIGHT;
+            ctx.font = '15px serif';
+            ctx.textAlign = 'center';
+            const runeR = w * 0.425;
+            RUNES.forEach((rune, i) => {
+                const angle = (i * 360 / RUNES.length - 90) * Math.PI / 180;
+                const deg = i * 360 / RUNES.length - 90;
+                if ((deg > 125 && deg < 235) || (deg > -55 && deg < 55) || (deg > -110 && deg < -70)) return;
+                const rx = cx + runeR * Math.cos(angle);
+                const ry = cy + runeR * Math.sin(angle);
+                ctx.fillText(rune, rx, ry + 5);
+            });
+            ctx.globalAlpha = 1.0;
+
+            // 3. HP Arc (Left - Battery)
+            const arcR = w * 0.42;
+            const hpStart = 138 * Math.PI / 180;
+            const hpSweep = 84 * Math.PI / 180;
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = COLOR_HP_DARK;
+            ctx.beginPath();
+            ctx.arc(cx, cy, arcR, hpStart, hpStart + hpSweep);
+            ctx.stroke();
+
+            const hpActiveSweep = hpSweep * batteryLevel;
+            if (hpActiveSweep > 0.05) {
+                // Glow
+                ctx.lineWidth = 16;
+                ctx.strokeStyle = 'rgba(230, 57, 70, 0.4)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, arcR, hpStart, hpStart + hpActiveSweep);
+                ctx.stroke();
+
+                // Core
+                ctx.lineWidth = 10;
+                ctx.strokeStyle = COLOR_HP_RUBY;
+                ctx.beginPath();
+                ctx.arc(cx, cy, arcR, hpStart, hpStart + hpActiveSweep);
+                ctx.stroke();
+            }
+
+            // HP Text
+            ctx.font = 'bold 14px Cinzel, serif';
+            ctx.fillStyle = COLOR_HP_RUBY;
+            ctx.textAlign = 'center';
+            ctx.fillText(`HP ${Math.round(batteryLevel * 100)}%`, cx - arcR + 25, cy + 5);
+
+            // 4. XP Arc (Right - Steps)
+            const xpStart = -42 * Math.PI / 180;
+            const xpSweep = 84 * Math.PI / 180;
+            ctx.lineWidth = 10;
+            ctx.strokeStyle = COLOR_XP_DARK;
+            ctx.beginPath();
+            ctx.arc(cx, cy, arcR, xpStart, xpStart + xpSweep);
+            ctx.stroke();
+
+            const xpProgress = Math.min(1.0, stepCount / stepGoal);
+            const xpActiveSweep = xpSweep * xpProgress;
+            if (xpActiveSweep > 0.05) {
+                ctx.lineWidth = 16;
+                ctx.strokeStyle = 'rgba(114, 9, 183, 0.45)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, arcR, xpStart, xpStart + xpActiveSweep);
+                ctx.stroke();
+
+                ctx.lineWidth = 10;
+                ctx.strokeStyle = COLOR_XP_CYAN;
+                ctx.beginPath();
+                ctx.arc(cx, cy, arcR, xpStart, xpStart + xpActiveSweep);
+                ctx.stroke();
+            }
+
+            // XP Text
+            ctx.font = 'bold 14px Cinzel, serif';
+            ctx.fillStyle = COLOR_XP_CYAN;
+            const stepStr = stepCount >= 1000 ? `${(stepCount / 1000).toFixed(1)}k` : `${stepCount}`;
+            ctx.fillText(`${stepStr} XP`, cx + arcR - 25, cy + 5);
+
+            // 5. Digital 24H Clock (Top)
+            ctx.textAlign = 'center';
+            ctx.font = '12px Cinzel, serif';
+            ctx.fillStyle = COLOR_GOLD_DARK;
+            ctx.fillText('‹ 24h ›', cx, h * 0.125);
+
+            ctx.font = 'bold 54px Cinzel, serif';
+            ctx.fillStyle = '#000';
+            ctx.fillText(getTimeString(), cx + 2, h * 0.22 + 2);
+            ctx.fillStyle = COLOR_GOLD_PRIMARY;
+            ctx.shadowColor = 'rgba(212, 175, 55, 0.5)';
+            ctx.shadowBlur = 12;
+            ctx.fillText(getTimeString(), cx, h * 0.22);
+            ctx.shadowBlur = 0;
+
+            // 6. Bottom Status (Date & BPM)
+            ctx.font = '16px Cinzel, serif';
+            ctx.fillStyle = COLOR_GOLD_LIGHT;
+            ctx.fillText(getDateString(), cx, h * 0.77);
+
+            ctx.font = 'bold 16px Inter, sans-serif';
+            ctx.fillStyle = COLOR_HP_RUBY;
+            ctx.globalAlpha = 0.7 + 0.3 * breathing;
+            ctx.fillText('♥ 72 BPM', cx, h * 0.84);
+            ctx.globalAlpha = 1.0;
+
+            // 7. Central D20 Die
+            const d20X = cx + shakeOffsetX;
+            const d20Y = cy + shakeOffsetY;
+
+            if (rollState === 'CRITICAL_SUCCESS') {
+                ctx.fillStyle = 'rgba(212, 175, 55, 0.25)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, d20Radius * 1.4, 0, Math.PI * 2);
+                ctx.fill();
+                drawBanner(cx, cy - d20Radius * 1.35, "¡ÉXITO CRÍTICO!", COLOR_GOLD_PRIMARY);
+            } else if (rollState === 'CRITICAL_FAIL') {
+                ctx.fillStyle = 'rgba(139, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.arc(cx, cy, d20Radius * 1.4, 0, Math.PI * 2);
+                ctx.fill();
+                drawBanner(cx, cy - d20Radius * 1.35, "¡PIFIA CRÍTICA!", COLOR_HP_RUBY);
+            }
+
+            drawShadedD20(d20X, d20Y, d20Radius, rotationAngle);
+
+            // Number in D20
+            ctx.font = 'bold 42px Cinzel, serif';
+            ctx.fillStyle = '#000';
+            ctx.fillText(currentDisplayValue, d20X + 2, d20Y + 15);
+            ctx.fillStyle = currentDisplayValue === 20 ? COLOR_GOLD_LIGHT : (currentDisplayValue === 1 ? COLOR_HP_RUBY : COLOR_GOLD_PRIMARY);
+            ctx.fillText(currentDisplayValue, d20X, d20Y + 13);
+
+            // 8. Render Particles
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function drawShadedD20(cx, cy, r, rot) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(rot * Math.PI / 180);
+
+            // 6 Outer vertices
+            const outer = [];
+            for (let i = 0; i < 6; i++) {
+                const a = (i * Math.PI / 3) - (Math.PI / 6);
+                outer.push({ x: r * Math.cos(a), y: r * Math.sin(a) });
+            }
+
+            // 3 Inner vertices
+            const inner = [];
+            const ir = r * 0.52;
+            for (let i = 0; i < 3; i++) {
+                const a = (i * 2 * Math.PI / 3) - (Math.PI / 2);
+                inner.push({ x: ir * Math.cos(a), y: ir * Math.sin(a) });
+            }
+
+            // Facet definitions & light values
+            const facets = [
+                { pts: [inner[0], inner[1], inner[2]], light: 1.10 },
+                { pts: [outer[0], outer[1], inner[0]], light: 1.25 },
+                { pts: [outer[1], outer[2], inner[1]], light: 0.85 },
+                { pts: [outer[2], outer[3], inner[1]], light: 0.65 },
+                { pts: [outer[3], outer[4], inner[2]], light: 0.60 },
+                { pts: [outer[4], outer[5], inner[2]], light: 0.75 },
+                { pts: [outer[5], outer[0], inner[0]], light: 1.15 }
+            ];
+
+            facets.forEach(f => {
+                ctx.fillStyle = `rgb(${Math.min(255, 190 * f.light)}, ${Math.min(255, 150 * f.light)}, ${Math.min(255, 55 * f.light)})`;
+                ctx.beginPath();
+                ctx.moveTo(f.pts[0].x, f.pts[0].y);
+                ctx.lineTo(f.pts[1].x, f.pts[1].y);
+                ctx.lineTo(f.pts[2].x, f.pts[2].y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = COLOR_GOLD_LIGHT;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            });
+
+            // Outer Rim
+            ctx.strokeStyle = COLOR_GOLD_PRIMARY;
+            ctx.lineWidth = 2.4;
+            ctx.beginPath();
+            ctx.moveTo(outer[0].x, outer[0].y);
+            for (let i = 1; i < 6; i++) ctx.lineTo(outer[i].x, outer[i].y);
+            ctx.closePath();
+            ctx.stroke();
+
+            // Corner Rivets
+            outer.forEach(p => {
+                ctx.fillStyle = COLOR_GOLD_LIGHT;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            ctx.restore();
+        }
+
+        function drawD20Wireframe(cx, cy, r, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const a = (i * Math.PI / 3) - (Math.PI / 6);
+                const x = cx + r * Math.cos(a);
+                const y = cy + r * Math.sin(a);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+
+            // Inner triangle
+            const ir = r * 0.52;
+            ctx.beginPath();
+            for (let i = 0; i < 3; i++) {
+                const a = (i * 2 * Math.PI / 3) - (Math.PI / 2);
+                const x = cx + ir * Math.cos(a);
+                const y = cy + ir * Math.sin(a);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        function drawBanner(x, y, text, color) {
+            ctx.font = 'bold 14px Cinzel, serif';
+            const m = ctx.measureText(text);
+            const bw = m.width + 24;
+            const bh = 24;
+            ctx.fillStyle = 'rgba(10, 10, 14, 0.9)';
+            ctx.fillRect(x - bw / 2, y - bh / 2, bw, bh);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(x - bw / 2, y - bh / 2, bw, bh);
+            ctx.fillStyle = color;
+            ctx.fillText(text, x, y + 5);
+        }
+
+        function getTimeString() {
+            const d = new Date();
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            return `${hh}:${mm}`;
+        }
+
+        function getDateString() {
+            const d = new Date();
+            const days = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+            const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
+            return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+        }
+
+        // Start animation loop
+        requestAnimationFrame(renderLoop);
+    </script>
+</body>
+</html>

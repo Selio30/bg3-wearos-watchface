@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- BG3 Mystical Dark Palette -->
+    <color name="bg3_background_dark">#0A0A0E</color>
+    <color name="bg3_background_void">#050508</color>
+    
+    <!-- Arcane Gold Accents -->
+    <color name="bg3_gold_primary">#D4AF37</color>
+    <color name="bg3_gold_light">#F5D77F</color>
+    <color name="bg3_gold_dark">#8C6F2D</color>
+    <color name="bg3_gold_border">#B89738</color>
+    
+    <!-- Health / HP Crimson Red -->
+    <color name="bg3_hp_crimson">#8B0000</color>
+    <color name="bg3_hp_bright">#E63946</color>
+    <color name="bg3_hp_dark">#4A0000</color>
+    
+    <!-- XP / Illithid Arcane Blue and Purple -->
+    <color name="bg3_xp_blue">#4CC9F0</color>
+    <color name="bg3_xp_purple">#7209B7</color>
+    <color name="bg3_xp_dark_violet">#3A0CA3</color>
+    
+    <!-- Ambient / AOD Power-saving Colors -->
+    <color name="bg3_ambient_black">#000000</color>
+    <color name="bg3_ambient_gold_dim">#554522</color>
+    <color name="bg3_ambient_text">#AAAAAA</color>
+</resources>
