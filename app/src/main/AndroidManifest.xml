@@ -25,14 +25,9 @@
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
 
-        <!-- Watch Face Format v1 Declaration for Wear OS 5 -->
-        <property
-            android:name="com.google.wear.watchface.format.version"
-            android:value="1" />
-
-        <!-- Native Watch Face Format Service -->
+        <!-- Baldur's Gate 3 Native Watch Face Service -->
         <service
-            android:name="com.google.android.wearable.watchface.WatchFaceService"
+            android:name=".BG3WatchFaceService"
             android:directBootAware="true"
             android:exported="true"
             android:label="@string/watch_face_name"
@@ -51,10 +46,15 @@
             <!-- Watch Face Previews for Companion App & Watch Selector -->
             <meta-data
                 android:name="com.google.android.wearable.watchface.preview"
-                android:resource="@drawable/preview_bg3_watchface" />
+                android:resource="@drawable/preview" />
             <meta-data
                 android:name="com.google.android.wearable.watchface.preview_circular"
-                android:resource="@drawable/preview_bg3_watchface" />
+                android:resource="@drawable/preview" />
+
+            <!-- Jetpack Watch Face Editor Configuration Action -->
+            <meta-data
+                android:name="com.google.android.wearable.watchface.wearableConfigurationAction"
+                android:value="androidx.wear.watchface.editor.action.WATCH_FACE_EDITOR" />
 
         </service>
 

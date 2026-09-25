@@ -259,6 +259,11 @@ class BG3CanvasRenderer(
 
         // 10. Particle System overlays
         particleSystem.render(canvas)
+
+        // Continuous 60 FPS animation loop in interactive mode
+        if (renderParameters.drawMode == DrawMode.INTERACTIVE) {
+            invalidate()
+        }
     }
 
     private fun initAmbientMotes(cx: Float, cy: Float, width: Float) {
