@@ -209,5 +209,16 @@ object BG3Theme {
             typeface = TYPEFACE_SERIF_NORMAL
             textAlign = Paint.Align.CENTER
         }
+
+        val bgReliefPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 0.8f
+        }
+        val bgReliefFillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+        }
+        val ambientMotePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.FILL
+        }
     }
 }

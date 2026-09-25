@@ -3,6 +3,7 @@ package com.bg3.watchface.renderer
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.DashPathEffect
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Rect
@@ -28,6 +29,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.hypot
 import kotlin.math.pow
 import kotlin.math.sin
 
@@ -95,6 +97,23 @@ class BG3CanvasRenderer(
     private var lastHeight = -1f
     private var lastFrameTimeMs = System.currentTimeMillis()
     private var runeRingAngle = 0f
+    private val dashPathEffect = DashPathEffect(floatArrayOf(3f, 7f), 0f)
+
+    // Ambient floating motes / arcane embers
+    private class AmbientMote(
+        var x: Float = 0f,
+        var y: Float = 0f,
+        var speedY: Float = 10f,
+        var driftFreq: Float = 1f,
+        var driftAmp: Float = 0.3f,
+        var phase: Float = 0f,
+        var size: Float = 1.0f,
+        var baseAlpha: Float = 0.14f,
+        var pulseSpeed: Float = 1.4f
+    )
+    private val ambientMoteCount = 24
+    private val ambientMotes = Array(ambientMoteCount) { AmbientMote() }
+    private var motesInitialized = false
 
     // Formatters
     private val time24Formatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -131,7 +150,7 @@ class BG3CanvasRenderer(
             renderAmbientMode(canvas, bounds, zonedDateTime, centerX, centerY, d20Radius)
         } else {
             rollController.update(nowMs, centerX, centerY, deltaSeconds)
-            renderInteractiveMode(canvas, bounds, zonedDateTime, centerX, centerY, d20Radius, nowMs)
+            renderInteractiveMode(canvas, bounds, zonedDateTime, centerX, centerY, d20Radius, nowMs, deltaSeconds)
         }
     }
 
@@ -179,7 +198,8 @@ class BG3CanvasRenderer(
         centerX: Float,
         centerY: Float,
         d20Radius: Float,
-        nowMs: Long
+        nowMs: Long,
+        deltaSeconds: Float
     ) {
         val width = bounds.width().toFloat()
         val height = bounds.height().toFloat()
@@ -193,6 +213,7 @@ class BG3CanvasRenderer(
                 floatArrayOf(0f, 0.65f, 1.0f),
                 Shader.TileMode.CLAMP
             )
+            initAmbientMotes(centerX, centerY, width)
         }
 
         val bgPaint = paints.d20FillPaint
@@ -203,29 +224,144 @@ class BG3CanvasRenderer(
         val elapsedSec = nowMs.toFloat() / 1000f
         val breathing = (cos(elapsedSec * 2.2f) * 0.15f + 0.85f).coerceIn(0.6f, 1.0f)
 
-        // 1. Outer Arcane Summoning Ring
+        // 1. Subtle Background Relief & Sacred Astral Geometry (faint rings, radial rays, gothic slate arches)
+        renderBackgroundRelief(canvas, centerX, centerY, width, breathing)
+
+        // 2. Ambient Floating Motes / Arcane Embers
+        updateAmbientMotes(deltaSeconds, centerX, centerY, width, nowMs)
+        renderAmbientMotes(canvas, centerX, centerY, nowMs)
+
+        // 3. Outer Arcane Summoning Ring
         renderSummoningRing(canvas, centerX, centerY, width, breathing)
 
-        // 2. Left Arc: HP / Battery Gauge
+        // 4. Left Arc: HP / Battery Gauge
         renderHpGauge(canvas, centerX, centerY, width)
 
-        // 3. Right Arc: XP / Steps Gauge
+        // 5. Right Arc: XP / Steps Gauge
         renderXpGauge(canvas, centerX, centerY, width)
 
-        // 4. Top: Stylized Digital Clock
+        // 6. Top: Stylized Digital Clock
         renderDigitalClock(canvas, zonedDateTime, centerX, height, width)
 
-        // 5. Ability Check / DC Pill Badge above D20
+        // 7. Ability Check / DC Pill Badge above D20
         renderSkillCheckBadge(canvas, centerX, height * 0.30f, width)
 
-        // 6. Central D20 Die & Rolls
+        // 8. Central D20 Die & Rolls
         renderCentralD20(canvas, centerX, centerY, d20Radius, breathing)
 
-        // 7. Bottom: Date & Heart Rate
+        // 9. Bottom: Date & Heart Rate
         renderBottomStatus(canvas, zonedDateTime, centerX, height, width, breathing)
 
-        // 8. Particle System overlays
+        // 10. Particle System overlays
         particleSystem.render(canvas)
+    }
+
+    private fun initAmbientMotes(cx: Float, cy: Float, width: Float) {
+        val random = java.util.Random()
+        for (m in ambientMotes) {
+            val angle = random.nextFloat() * (Math.PI.toFloat() * 2f)
+            val dist = random.nextFloat() * (width * 0.42f)
+            m.x = cx + cos(angle) * dist
+            m.y = cy + sin(angle) * dist
+            m.speedY = random.nextFloat() * 12f + 6f
+            m.driftFreq = random.nextFloat() * 1.5f + 0.8f
+            m.driftAmp = random.nextFloat() * 0.4f + 0.2f
+            m.phase = random.nextFloat() * (Math.PI.toFloat() * 2f)
+            m.size = random.nextFloat() * 1.3f + 0.7f
+            m.baseAlpha = random.nextFloat() * 0.16f + 0.10f
+            m.pulseSpeed = random.nextFloat() * 1.8f + 1.0f
+        }
+        motesInitialized = true
+    }
+
+    private fun updateAmbientMotes(dt: Float, cx: Float, cy: Float, width: Float, nowMs: Long) {
+        val maxDist = width * 0.44f
+        val nowSec = nowMs.toFloat() / 1000f
+        val random = java.util.Random()
+        for (m in ambientMotes) {
+            m.y -= m.speedY * dt
+            m.x += sin(nowSec * 1.6f * m.driftFreq + m.phase) * (m.driftAmp * 50f * dt)
+            val dist = hypot(m.x - cx, m.y - cy)
+            if (m.y < cy - maxDist || dist > maxDist) {
+                val spawnAngle = (Math.PI.toFloat() * 0.20f) + random.nextFloat() * (Math.PI.toFloat() * 0.60f)
+                val spawnR = maxDist * (0.55f + random.nextFloat() * 0.40f)
+                val sign = if (random.nextBoolean()) 1f else -1f
+                m.x = cx + cos(spawnAngle) * spawnR * sign
+                m.y = cy + sin(spawnAngle) * spawnR
+            }
+        }
+    }
+
+    private fun renderAmbientMotes(canvas: Canvas, cx: Float, cy: Float, nowMs: Long) {
+        val moteColor = when (currentTheme) {
+            ThemeVariant.KARLACH_INFERNAL -> Color.parseColor("#FF9E00")
+            ThemeVariant.ASTARION_VAMPIRE -> Color.parseColor("#C0C0D0")
+            ThemeVariant.SHADOWHEART_SHAR -> Color.parseColor("#9381FF")
+            ThemeVariant.CLASSIC_TAV -> currentTheme.goldLight
+        }
+        val nowSec = nowMs.toFloat() / 1000f
+        paints.ambientMotePaint.color = moteColor
+        for (m in ambientMotes) {
+            val pulse = sin(nowSec * 2.0f * m.pulseSpeed + m.phase) * 0.5f + 0.5f
+            val alpha = (m.baseAlpha + pulse * 0.16f).coerceIn(0f, 1f)
+            paints.ambientMotePaint.alpha = (alpha * 255f).toInt()
+            canvas.drawCircle(m.x, m.y, m.size, paints.ambientMotePaint)
+        }
+    }
+
+    private fun renderBackgroundRelief(canvas: Canvas, cx: Float, cy: Float, width: Float, breathing: Float) {
+        // A. Faint Concentric Sacred Astral Geometry Rings
+        paints.bgReliefPaint.color = currentTheme.goldDark
+        paints.bgReliefPaint.strokeWidth = 0.8f
+
+        // Ring 1: inner boundary
+        paints.bgReliefPaint.alpha = (12 * breathing).toInt()
+        paints.bgReliefPaint.pathEffect = null
+        canvas.drawCircle(cx, cy, width * 0.23f, paints.bgReliefPaint)
+
+        // Ring 2: dashed middle celestial ring
+        paints.bgReliefPaint.alpha = (18 * breathing).toInt()
+        paints.bgReliefPaint.pathEffect = dashPathEffect
+        canvas.drawCircle(cx, cy, width * 0.33f, paints.bgReliefPaint)
+        paints.bgReliefPaint.pathEffect = null
+
+        // Ring 3: outer ring
+        paints.bgReliefPaint.alpha = (12 * breathing).toInt()
+        canvas.drawCircle(cx, cy, width * 0.41f, paints.bgReliefPaint)
+
+        // B. Subtle Astral Ray Lines (8 celestial axes)
+        paints.bgReliefPaint.strokeWidth = 0.6f
+        paints.bgReliefPaint.alpha = (10 * breathing).toInt()
+        val rIn = width * 0.19f
+        val rOut = width * 0.41f
+        val rMid = width * 0.33f
+
+        paints.bgReliefFillPaint.color = currentTheme.goldLight
+        paints.bgReliefFillPaint.alpha = (25 * breathing).toInt()
+
+        for (i in 0 until 8) {
+            val ang = (i * Math.PI / 4.0).toFloat()
+            val cosA = cos(ang)
+            val sinA = sin(ang)
+            canvas.drawLine(
+                cx + cosA * rIn, cy + sinA * rIn,
+                cx + cosA * rOut, cy + sinA * rOut,
+                paints.bgReliefPaint
+            )
+            // Diamond nodes at intersection with dashed ring
+            canvas.drawCircle(cx + cosA * rMid, cy + sinA * rMid, 1.2f, paints.bgReliefFillPaint)
+        }
+
+        // C. Interlocking Gothic Slate Arch Relief
+        paints.bgReliefPaint.color = currentTheme.goldPrimary
+        paints.bgReliefPaint.strokeWidth = 0.65f
+        paints.bgReliefPaint.alpha = (8 * breathing).toInt()
+        val arcRadius = width * 0.16f
+        val off = width * 0.08f
+        canvas.drawCircle(cx, cy - off, arcRadius, paints.bgReliefPaint)
+        canvas.drawCircle(cx, cy + off, arcRadius, paints.bgReliefPaint)
+        canvas.drawCircle(cx - off, cy, arcRadius, paints.bgReliefPaint)
+        canvas.drawCircle(cx + off, cy, arcRadius, paints.bgReliefPaint)
     }
 
     private fun renderSummoningRing(canvas: Canvas, cx: Float, cy: Float, width: Float, breathing: Float) {
