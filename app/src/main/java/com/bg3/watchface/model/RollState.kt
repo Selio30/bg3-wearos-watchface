@@ -1,62 +1,77 @@
 package com.bg3.watchface.model
 
 /**
- * Represents the current animation and calculation state of the central D20 die.
+ * Ability check / Saving throw types inspired by D&D 5e / Baldur's Gate 3.
+ */
+enum class AbilityCheck(val code: String, val displayName: String, val defaultMod: Int) {
+    STRENGTH("FUE", "Fuerza", 3),
+    DEXTERITY("DES", "Destreza", 4),
+    CONSTITUTION("CON", "Constitución", 2),
+    INTELLIGENCE("INT", "Inteligencia", 1),
+    WISDOM("SAB", "Sabiduría", 2),
+    CHARISMA("CAR", "Carisma", 3);
+
+    fun next(): AbilityCheck {
+        val values = values()
+        return values[(ordinal + 1) % values.size]
+    }
+}
+
+/**
+ * Visual and operational states of the D20 roll with DC (Difficulty Class) resolution.
  */
 sealed class RollState {
 
     /**
-     * Idle state: Die is resting, smoothly pulsating with an arcane breathing glow.
+     * Idle state: Die is resting with breathing arcane glow.
      */
     object Idle : RollState()
 
     /**
-     * Active rolling state: Die is vibrating/shaking, rotating, and cycling random faces.
-     *
-     * @param elapsedMs Elapsed time in milliseconds since the roll started.
-     * @param displayValue Current number temporarily visible on the face during spin.
-     * @param shakeOffsetX Pixel horizontal tremor offset.
-     * @param shakeOffsetY Pixel vertical tremor offset.
-     * @param rotationDegrees Current rotational angle in degrees.
+     * Active rolling state: Die vibrates, spins, and shuffles random numbers.
      */
     data class Rolling(
         val elapsedMs: Long,
         val displayValue: Int,
         val shakeOffsetX: Float,
         val shakeOffsetY: Float,
-        val rotationDegrees: Float
+        val rotationDegrees: Float,
+        val ability: AbilityCheck,
+        val dc: Int
     ) : RollState()
 
     /**
-     * Critical Success (Natural 20): Explosive radiant golden aura and particles!
-     *
-     * @param elapsedMs Elapsed time in milliseconds since landing on 20.
+     * Critical Success (Natural 20): Auto-success with radiant explosion.
      */
     data class CriticalSuccess(
-        val elapsedMs: Long
+        val elapsedMs: Long,
+        val ability: AbilityCheck,
+        val totalScore: Int
     ) : RollState() {
         val value: Int = 20
     }
 
     /**
-     * Critical Failure (Natural 1): Ominous crimson/purple necrotic smoke and screen tremor!
-     *
-     * @param elapsedMs Elapsed time in milliseconds since landing on 1.
+     * Critical Failure (Natural 1): Auto-fail with necrotic shadow smoke.
      */
     data class CriticalFailure(
-        val elapsedMs: Long
+        val elapsedMs: Long,
+        val ability: AbilityCheck,
+        val totalScore: Int
     ) : RollState() {
         val value: Int = 1
     }
 
     /**
-     * Standard Roll Settled (Values 2 to 19): Clean settle with gold highlight pulse.
-     *
-     * @param value The final rolled D20 number (2..19).
-     * @param elapsedMs Elapsed time in milliseconds since landing.
+     * Standard Roll Resolved (2 to 19): Compares (roll + modifier) vs DC.
      */
     data class Settled(
         val value: Int,
+        val modifier: Int,
+        val total: Int,
+        val dc: Int,
+        val isPassed: Boolean,
+        val ability: AbilityCheck,
         val elapsedMs: Long
     ) : RollState()
 }

@@ -9,15 +9,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Mathematical projection and rendering of a 20-sided icosahedron (D20) in 2D perspective.
- * Renders metallic faceted shading, ornate filigree border, and central result number.
+ * Mathematical projection and rendering of an ornate 20-sided icosahedron (D20) in 2D perspective.
+ * Includes directional lighting, metallic face shading, intricate filigree engravings, and specular highlights.
  */
 class D20Geometry {
 
-    // Pre-allocated paths and point arrays to ensure zero garbage-collection in render()
     private val outerHexagonPath = Path()
     private val innerTrianglePath = Path()
     private val facetPath = Path()
+    private val filigreePath = Path()
 
     private val outerPoints = Array(6) { PointF() }
     private val innerPoints = Array(3) { PointF() }
@@ -32,9 +32,9 @@ class D20Geometry {
         intArrayOf(3, 4, 8),      // Bottom facet
         intArrayOf(4, 5, 8),      // Lower-left facet
         intArrayOf(5, 0, 6),      // Upper-left facet
-        intArrayOf(1, 6, 7),      // Intermediate face
-        intArrayOf(3, 7, 8),      // Intermediate face
-        intArrayOf(5, 8, 6)       // Intermediate face
+        intArrayOf(1, 6, 7),      // Intermediate face right
+        intArrayOf(3, 7, 8),      // Intermediate face bottom
+        intArrayOf(5, 8, 6)       // Intermediate face left
     )
 
     // Directional shading factors for simulated 3D ambient + directional light (top-left light source)
@@ -51,9 +51,6 @@ class D20Geometry {
         1.05f
     )
 
-    /**
-     * Computes vertices based on center coordinate, radius, and rotation.
-     */
     fun computeVertices(centerX: Float, centerY: Float, radius: Float, rotationDegrees: Float) {
         val radOffset = Math.toRadians(rotationDegrees.toDouble())
 
@@ -78,7 +75,7 @@ class D20Geometry {
     }
 
     /**
-     * Draws the full shaded 3D-styled metallic D20 for Active Mode.
+     * Draws the full shaded 3D-styled metallic D20 with ornate filigree for Active Mode.
      */
     fun drawActiveD20(
         canvas: Canvas,
@@ -88,22 +85,25 @@ class D20Geometry {
         rotationDegrees: Float,
         fillPaint: Paint,
         strokePaint: Paint,
-        innerStrokePaint: Paint
+        innerStrokePaint: Paint,
+        filigreePaint: Paint,
+        primaryColor: Int,
+        lightColor: Int
     ) {
         computeVertices(centerX, centerY, radius, rotationDegrees)
 
-        // Draw shaded metallic facets
+        val prR = Color.red(primaryColor)
+        val prG = Color.green(primaryColor)
+        val prB = Color.blue(primaryColor)
+
+        // 1. Draw shaded metallic facets
         for (i in facetIndices.indices) {
             val indices = facetIndices[i]
             val lightMultiplier = facetLighting[i]
 
-            // Calculate metallic bronze-gold shade based on light
-            val baseR = 190
-            val baseG = 150
-            val baseB = 55
-            val r = (baseR * lightMultiplier).toInt().coerceIn(30, 255)
-            val g = (baseG * lightMultiplier).toInt().coerceIn(24, 230)
-            val b = (baseB * lightMultiplier).toInt().coerceIn(10, 150)
+            val r = (prR * lightMultiplier * 0.88f).toInt().coerceIn(15, 255)
+            val g = (prG * lightMultiplier * 0.88f).toInt().coerceIn(15, 255)
+            val b = (prB * lightMultiplier * 0.88f).toInt().coerceIn(15, 255)
 
             fillPaint.color = Color.rgb(r, g, b)
 
@@ -120,7 +120,25 @@ class D20Geometry {
             canvas.drawPath(facetPath, fillPaint)
         }
 
-        // Draw facet wireframe borders (metallic gold ridges)
+        // 2. Draw subtle ornate filigree curves inside the peripheral facets
+        filigreePaint.color = lightColor
+        filigreePaint.alpha = 75
+        for (i in 1..6) {
+            val indices = facetIndices[i]
+            val p0 = getVertex(indices[0])
+            val p1 = getVertex(indices[1])
+            val p2 = getVertex(indices[2])
+            val mx = (p0.x + p1.x) / 2f
+            val my = (p0.y + p1.y) / 2f
+
+            filigreePath.reset()
+            filigreePath.moveTo(mx, my)
+            filigreePath.quadTo((mx + p2.x) / 2f, (my + p2.y) / 2f, p2.x, p2.y)
+            canvas.drawPath(filigreePath, filigreePaint)
+        }
+
+        // 3. Draw facet wireframe borders (metallic gold ridges)
+        innerStrokePaint.color = lightColor
         for (indices in facetIndices) {
             val p0 = getVertex(indices[0])
             val p1 = getVertex(indices[1])
@@ -131,24 +149,29 @@ class D20Geometry {
             canvas.drawLine(p2.x, p2.y, p0.x, p0.y, innerStrokePaint)
         }
 
-        // Draw heavy ornate outer rim
+        // 4. Draw outer rim with double bevel
         outerHexagonPath.reset()
         outerHexagonPath.moveTo(outerPoints[0].x, outerPoints[0].y)
         for (i in 1 until 6) {
             outerHexagonPath.lineTo(outerPoints[i].x, outerPoints[i].y)
         }
         outerHexagonPath.close()
+
+        strokePaint.color = primaryColor
+        strokePaint.strokeWidth = 2.4f
         canvas.drawPath(outerHexagonPath, strokePaint)
 
-        // Corner rivets
+        // Corner metallic studs / rivets
+        innerStrokePaint.color = lightColor
+        innerStrokePaint.style = Paint.Style.FILL
         for (p in outerPoints) {
-            canvas.drawCircle(p.x, p.y, 2.8f, innerStrokePaint)
+            canvas.drawCircle(p.x, p.y, 2.6f, innerStrokePaint)
         }
+        innerStrokePaint.style = Paint.Style.STROKE
     }
 
     /**
-     * Draws ultra-low-power wireframe D20 for Ambient (AOD) Mode.
-     * Complies strictly with < 10% On-Pixel Ratio (OPR).
+     * Ultra-low-power wireframe D20 for Ambient (AOD) Mode (<10% OPR).
      */
     fun drawAmbientD20(
         canvas: Canvas,
@@ -159,7 +182,6 @@ class D20Geometry {
     ) {
         computeVertices(centerX, centerY, radius, 0f)
 
-        // Outer Hexagon
         outerHexagonPath.reset()
         outerHexagonPath.moveTo(outerPoints[0].x, outerPoints[0].y)
         for (i in 1 until 6) {
@@ -168,7 +190,6 @@ class D20Geometry {
         outerHexagonPath.close()
         canvas.drawPath(outerHexagonPath, aodStrokePaint)
 
-        // Inner Triangle
         innerTrianglePath.reset()
         innerTrianglePath.moveTo(innerPoints[0].x, innerPoints[0].y)
         innerTrianglePath.lineTo(innerPoints[1].x, innerPoints[1].y)
@@ -176,17 +197,12 @@ class D20Geometry {
         innerTrianglePath.close()
         canvas.drawPath(innerTrianglePath, aodStrokePaint)
 
-        // Main connector spokes
         canvas.drawLine(outerPoints[0].x, outerPoints[0].y, innerPoints[0].x, innerPoints[0].y, aodStrokePaint)
         canvas.drawLine(outerPoints[2].x, outerPoints[2].y, innerPoints[1].x, innerPoints[1].y, aodStrokePaint)
         canvas.drawLine(outerPoints[4].x, outerPoints[4].y, innerPoints[2].x, innerPoints[2].y, aodStrokePaint)
     }
 
     private fun getVertex(index: Int): PointF {
-        return if (index < 6) {
-            outerPoints[index]
-        } else {
-            innerPoints[index - 6]
-        }
+        return if (index < 6) outerPoints[index] else innerPoints[index - 6]
     }
 }
