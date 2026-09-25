@@ -1,6 +1,9 @@
 package com.bg3.watchface
 
 import android.app.Activity
+import android.app.WallpaperManager
+import android.content.ComponentName
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import com.bg3.watchface.view.BG3InteractiveView
@@ -12,10 +15,31 @@ import com.bg3.watchface.view.BG3InteractiveView
  */
 class BG3InteractiveActivity : Activity() {
 
+    companion object {
+        const val ACTION_APPLY_WATCH_FACE = "com.bg3.watchface.action.APPLY_WATCH_FACE"
+    }
+
     private lateinit var interactiveView: BG3InteractiveView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (intent?.action == ACTION_APPLY_WATCH_FACE) {
+            try {
+                val wallpaperIntent = Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).apply {
+                    putExtra(
+                        WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT,
+                        ComponentName(this@BG3InteractiveActivity, BG3WatchFaceService::class.java)
+                    )
+                }
+                startActivity(wallpaperIntent)
+                finish()
+                return
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
         setShowWhenLocked(true)
         setTurnScreenOn(true)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -26,6 +50,8 @@ class BG3InteractiveActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        interactiveView.invalidate()
+        if (::interactiveView.isInitialized) {
+            interactiveView.invalidate()
+        }
     }
 }

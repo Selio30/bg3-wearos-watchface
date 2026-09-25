@@ -20,10 +20,24 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BG3WatchFace">
 
+        <!-- Watch Face Format (WFF) declaration for Wear OS 4 / 5 and OnePlus / OHealth picker -->
+        <property
+            android:name="com.google.wear.watchface.format.version"
+            android:value="1" />
+
         <!-- Standalone watch app indicator for Wear OS 4 / 5 -->
         <meta-data
             android:name="com.google.android.wearable.standalone"
             android:value="true" />
+
+        <!-- OnePlus HeyTap Power consumption rating (Required for OHealth / OnePlus Watch 2/3) -->
+        <meta-data
+            android:name="heytap.wearable.watchface.POWER_CONSUMPTION_LEVEL"
+            android:value="5" />
+
+        <uses-library
+            android:name="com.google.android.wearable"
+            android:required="false" />
 
         <!-- Baldur's Gate 3 Native Watch Face Service -->
         <service
@@ -36,6 +50,7 @@
             <intent-filter>
                 <action android:name="android.service.wallpaper.WallpaperService" />
                 <category android:name="com.google.android.wearable.watchface.category.WATCH_FACE" />
+                <category android:name="com.google.android.wearable.watchface.category.CHOOSE_FACE" />
             </intent-filter>
 
             <!-- Wallpaper Descriptor -->
@@ -51,11 +66,25 @@
                 android:name="com.google.android.wearable.watchface.preview_circular"
                 android:resource="@drawable/preview" />
 
-            <!-- Jetpack Watch Face Editor Configuration Action -->
             <meta-data
-                android:name="com.google.android.wearable.watchface.wearableConfigurationAction"
-                android:value="androidx.wear.watchface.editor.action.WATCH_FACE_EDITOR" />
+                android:name="com.google.android.wearable.watchface.companionBuiltinConfigurationEnabled"
+                android:value="true" />
 
+            <meta-data
+                android:name="heytap.wearable.watchface.POWER_CONSUMPTION_LEVEL"
+                android:value="5" />
+
+        </service>
+
+        <!-- AndroidX WatchFace Control Service for Wear OS SysUI and picker enumeration -->
+        <service
+            android:name="androidx.wear.watchface.control.WatchFaceControlService"
+            android:directBootAware="true"
+            android:exported="true"
+            android:permission="com.google.android.wearable.permission.BIND_WATCH_FACE_CONTROL">
+            <intent-filter>
+                <action android:name="com.google.android.wearable.action.WATCH_FACE_CONTROL" />
+            </intent-filter>
         </service>
 
         <!-- Fullscreen Interactive 3D D20 Activity (Wear OS App Drawer + Watch Face Tap Action) -->
@@ -71,6 +100,10 @@
             </intent-filter>
             <intent-filter>
                 <action android:name="com.bg3.watchface.action.ROLL_D20" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="com.bg3.watchface.action.APPLY_WATCH_FACE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
