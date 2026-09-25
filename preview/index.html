@@ -524,6 +524,40 @@
             } catch(e) {}
         }
 
+        function playDiceImpactSound() {
+            if (!audioEnabled) return;
+            try {
+                const actx = getAudioContext();
+                const now = actx.currentTime;
+
+                // 1. Visceral sub-bass impact thud
+                const oscSub = actx.createOscillator();
+                const gainSub = actx.createGain();
+                oscSub.type = 'sine';
+                oscSub.frequency.setValueAtTime(115, now);
+                oscSub.frequency.exponentialRampToValueAtTime(32, now + 0.20);
+                gainSub.gain.setValueAtTime(0.48, now);
+                gainSub.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+                oscSub.connect(gainSub);
+                gainSub.connect(actx.destination);
+                oscSub.start(now);
+                oscSub.stop(now + 0.24);
+
+                // 2. Metallic clink
+                const oscClink = actx.createOscillator();
+                const gainClink = actx.createGain();
+                oscClink.type = 'triangle';
+                oscClink.frequency.setValueAtTime(880, now);
+                oscClink.frequency.exponentialRampToValueAtTime(320, now + 0.08);
+                gainClink.gain.setValueAtTime(0.24, now);
+                gainClink.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                oscClink.connect(gainClink);
+                gainClink.connect(actx.destination);
+                oscClink.start(now);
+                oscClink.stop(now + 0.08);
+            } catch(e) {}
+        }
+
         function playCritSuccessSound() {
             if (!audioEnabled) return;
             try {
@@ -671,9 +705,88 @@
         let forcedOutcome = null;
         let shakeOffsetX = 0;
         let shakeOffsetY = 0;
-        let rotationAngle = 0;
         let lastSettledData = null;
         let runeRingAngle = 0; // Continuous arcane rune rotation angle (degrees)
+
+        // 3D Regular Icosahedron (D20) Canonical Geometry (Normalized unit sphere)
+        const ICO_BASE_VERTS = [
+            [0.52573111, -0.30353100, 0.79465447],  // V0
+            [-0.52573111, -0.30353100, 0.79465447], // V1
+            [0.52573111, 0.30353100, -0.79465447],  // V2
+            [-0.52573111, 0.30353100, -0.79465447], // V3
+            [0.00000000, 0.98224695, -0.18759247],  // V4
+            [0.00000000, 0.60706200, 0.79465447],   // V5 (Apex pointing up)
+            [0.00000000, -0.60706200, -0.79465447], // V6
+            [0.00000000, -0.98224695, 0.18759247],  // V7
+            [-0.85065081, -0.49112347, -0.18759247],// V8
+            [-0.85065081, 0.49112347, 0.18759247],  // V9
+            [0.85065081, -0.49112347, -0.18759247], // V10
+            [0.85065081, 0.49112347, 0.18759247]    // V11
+        ];
+
+        // 20 Triangular Faces (counter-clockwise winding from outside)
+        const ICO_FACES = [
+            [0, 11, 5],
+            [0, 5, 1],   // Face 1: Resting front face (centered, apex UP, flat horizontal base)
+            [0, 1, 7],
+            [0, 7, 10],
+            [0, 10, 11],
+            [1, 5, 9],
+            [5, 11, 4],
+            [11, 10, 2],
+            [10, 7, 6],
+            [7, 1, 8],
+            [3, 9, 4],
+            [3, 4, 2],
+            [3, 2, 6],   // Face 12: Opposite to Face 1 (Normal pointing away [0, 0, -1])
+            [3, 6, 8],
+            [3, 8, 9],
+            [4, 9, 5],
+            [2, 4, 11],
+            [6, 2, 10],
+            [8, 6, 7],
+            [9, 8, 1]
+        ];
+
+        // Canonical D20 Face Numbers (Opposite faces sum to 21)
+        const D20_FACE_NUMBERS = [
+            14, // F0
+            20, // F1: Center face (dynamically displays the roll outcome)
+            2,  // F2
+            12, // F3
+            10, // F4
+            8,  // F5
+            16, // F6
+            15, // F7
+            4,  // F8
+            18, // F9
+            17, // F10
+            7,  // F11
+            1,  // F12 (Opposite to 20)
+            19, // F13
+            9,  // F14
+            13, // F15
+            6,  // F16
+            11, // F17
+            3,  // F18
+            5   // F19
+        ];
+
+        // 3D Tumble Physics & Dynamic VFX
+        let curRotX = 0;
+        let curRotY = 0;
+        let curRotZ = 0;
+        let tumbleVelX = 0;
+        let tumbleVelY = 0;
+        let tumbleVelZ = 0;
+        let spinAt900X = 0;
+        let spinAt900Y = 0;
+        let spinAt900Z = 0;
+        let hasCaptured900 = false;
+        let d20Hop = 0;
+        let d20ScaleX = 1;
+        let d20ScaleY = 1;
+        let shockwave = null;
 
         const RUNES = ["ᚠ", "ᚢ", "ᚦ", "ᚨ", "ᚱ", "ᚲ", "ᚷ", "ᚹ", "ᚺ", "ᚾ", "ᛁ", "ᛃ", "ᛇ", "ᛈ", "ᛉ", "ᛋ", "ᛏ", "ᛒ", "ᛖ", "ᛗ", "ᛚ", "ᛜ", "ᛞ", "ᛟ"];
         const FAERUN_MONTHS = ["Millofrío", "Las Garras", "La Puesta", "Las Tormentas", "El Deshielo", "Las Flores", "Mareasol", "El Alto Sol", "El Desvanecer", "La Caída", "El Abrazo", "El Dibujo"];
@@ -724,6 +837,17 @@
             rollState = 'ROLLING';
             rollStartTime = performance.now();
             particles.length = 0;
+            shockwave = null;
+            hasCaptured900 = false;
+
+            // High-energy 3D tumble velocities across all three spatial axes
+            const dirX = Math.random() > 0.5 ? 1 : -1;
+            const dirY = Math.random() > 0.5 ? 1 : -1;
+            const dirZ = Math.random() > 0.5 ? 1 : -1;
+            tumbleVelX = dirX * (34 + Math.random() * 14); // ~5-7 rev/s
+            tumbleVelY = dirY * (42 + Math.random() * 18);
+            tumbleVelZ = dirZ * (28 + Math.random() * 12);
+
             playDiceRattleSound();
         }
 
@@ -902,6 +1026,25 @@
                         isPassed: isPassed
                     };
 
+                    // Snap to canonical resting orientation (Face 1 facing camera flat & centered)
+                    curRotX = 0;
+                    curRotY = 0;
+                    curRotZ = 0;
+                    d20Hop = 0;
+                    shakeOffsetX = 0;
+                    shakeOffsetY = 0;
+
+                    // Procedural heavy impact sound
+                    playDiceImpactSound();
+
+                    // Spawn Arcane Impact Shockwave
+                    shockwave = {
+                        startTime: now,
+                        duration: 380,
+                        maxRadius: 130,
+                        color: result === 20 ? theme.goldLight : (result === 1 ? theme.hpRuby : theme.goldPrimary)
+                    };
+
                     if (result === 20) {
                         rollState = 'CRITICAL_SUCCESS';
                         emitParticles('GOLD', 55);
@@ -914,24 +1057,71 @@
                         rollState = 'SETTLED';
                         playNormalClickSound();
                     }
-                    shakeOffsetX = 0;
-                    shakeOffsetY = 0;
-                    rotationAngle = 0;
                 } else {
                     const progress = elapsed / 1300;
-                    const remaining = 1 - progress;
-                    shakeOffsetX = (Math.random() - 0.5) * 24 * remaining;
-                    shakeOffsetY = (Math.random() - 0.5) * 24 * remaining;
-                    rotationAngle = (elapsed * 0.45 * remaining) % 360;
 
-                    if (Math.random() > 0.4) {
+                    if (elapsed < 880) {
+                        curRotX = (curRotX + tumbleVelX * dt) % (Math.PI * 2);
+                        curRotY = (curRotY + tumbleVelY * dt) % (Math.PI * 2);
+                        curRotZ = (curRotZ + tumbleVelZ * dt) % (Math.PI * 2);
+                    } else {
+                        if (!hasCaptured900) {
+                            function normAngle(a) {
+                                a = a % (Math.PI * 2);
+                                if (a > Math.PI) a -= Math.PI * 2;
+                                if (a < -Math.PI) a += Math.PI * 2;
+                                return a;
+                            }
+                            spinAt900X = normAngle(curRotX);
+                            spinAt900Y = normAngle(curRotY);
+                            spinAt900Z = normAngle(curRotZ);
+                            hasCaptured900 = true;
+                        }
+                        const settleProgress = (elapsed - 880) / 420;
+                        const easeSettle = Math.pow(1 - settleProgress, 3);
+                        curRotX = spinAt900X * easeSettle;
+                        curRotY = spinAt900Y * easeSettle;
+                        curRotZ = spinAt900Z * easeSettle;
+                    }
+
+                    // Vertical Hop & Parallax
+                    const hopSine = Math.sin(progress * Math.PI);
+                    d20Hop = -24 * hopSine * Math.pow(1 - progress, 0.4);
+                    const scaleBounce = 1.0 + 0.14 * hopSine;
+                    d20ScaleX = scaleBounce;
+                    d20ScaleY = scaleBounce;
+
+                    // Screen shake jitter
+                    const shakeRem = Math.pow(1 - progress, 2);
+                    shakeOffsetX = (Math.random() - 0.5) * 16 * shakeRem;
+                    shakeOffsetY = (Math.random() - 0.5) * 16 * shakeRem;
+
+                    if (Math.random() > 0.35) {
                         currentDisplayValue = Math.floor(Math.random() * 20) + 1;
                     }
                 }
             } else if (rollState !== 'IDLE') {
+                // Post-impact squash & rebound
+                const impactElapsed = now - stateStartTime;
+                if (impactElapsed < 240) {
+                    const squashProgress = impactElapsed / 240;
+                    const squash = Math.sin(squashProgress * Math.PI) * (1 - squashProgress);
+                    d20ScaleY = 1.0 - 0.14 * squash;
+                    d20ScaleX = 1.0 + 0.08 * squash;
+                    d20Hop = 3 * squash;
+                } else {
+                    d20ScaleX = 1.0;
+                    d20ScaleY = 1.0;
+                    d20Hop = 0;
+                }
+
                 if (now - stateStartTime > 4500) {
                     rollState = 'IDLE';
                 }
+            } else {
+                d20ScaleX = 1.0;
+                d20ScaleY = 1.0;
+                d20Hop = 0;
             }
 
             // Particles Update
@@ -1115,9 +1305,63 @@
             const ability = ABILITIES[currentAbilityKey];
             drawPill(cx, h * 0.305, `• ${ability.code} +${ability.mod}  |  CD ${currentDC} •`);
 
-            // Central D20
+            // 1. Dynamic Drop Shadow underneath 3D die
+            const shadowY = cy + 44;
+            const hopNorm = Math.min(1.0, Math.abs(d20Hop) / 22);
+            const shadowRadiusX = d20Radius * (1.08 - 0.22 * hopNorm) * d20ScaleX;
+            const shadowRadiusY = 12 * (1.0 - 0.35 * hopNorm);
+            const shadowAlpha = 0.52 * (1.0 - 0.42 * hopNorm);
+
+            ctx.save();
+            ctx.translate(cx, shadowY);
+            ctx.scale(1, shadowRadiusY / shadowRadiusX);
+            const shadowGrad = ctx.createRadialGradient(0, 0, 4, 0, 0, shadowRadiusX);
+            shadowGrad.addColorStop(0, `rgba(0, 0, 0, ${shadowAlpha})`);
+            shadowGrad.addColorStop(0.65, `rgba(0, 0, 0, ${shadowAlpha * 0.4})`);
+            shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = shadowGrad;
+            ctx.beginPath();
+            ctx.arc(0, 0, shadowRadiusX, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // 2. Arcane Impact Dual Shockwave
+            if (shockwave) {
+                const swElapsed = now - shockwave.startTime;
+                if (swElapsed < shockwave.duration) {
+                    const swProgress = swElapsed / shockwave.duration;
+                    const swRadius1 = 20 + (shockwave.maxRadius - 20) * Math.pow(swProgress, 0.60);
+                    const swRadius2 = 14 + (shockwave.maxRadius * 0.72 - 14) * Math.pow(swProgress, 0.75);
+                    const swAlpha = Math.pow(1 - swProgress, 1.8);
+
+                    ctx.save();
+                    // Primary Outer Arcane Ring
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, swRadius1, 0, Math.PI * 2);
+                    ctx.strokeStyle = shockwave.color;
+                    ctx.lineWidth = 3.6 * (1 - swProgress);
+                    ctx.globalAlpha = swAlpha * 0.90;
+                    ctx.shadowColor = shockwave.color;
+                    ctx.shadowBlur = 16;
+                    ctx.stroke();
+
+                    // Secondary Inner Echo Ring
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, swRadius2, 0, Math.PI * 2);
+                    ctx.strokeStyle = theme.goldLight;
+                    ctx.lineWidth = 1.8 * (1 - swProgress);
+                    ctx.globalAlpha = swAlpha * 0.65;
+                    ctx.shadowBlur = 8;
+                    ctx.stroke();
+                    ctx.restore();
+                } else {
+                    shockwave = null;
+                }
+            }
+
+            // 3. Central D20 positioning & Banner feedback
             const d20X = cx + shakeOffsetX;
-            const d20Y = cy + shakeOffsetY;
+            const d20Y = cy + shakeOffsetY + d20Hop;
 
             if (rollState === 'CRITICAL_SUCCESS') {
                 ctx.fillStyle = theme.goldLight + '44';
@@ -1139,14 +1383,8 @@
                 drawBanner(cx, h * 0.74, bannerMsg, bannerColor);
             }
 
-            drawShadedD20(d20X, d20Y, d20Radius, rotationAngle);
-
-            // D20 Number
-            ctx.font = 'bold 36px Cinzel, serif';
-            ctx.fillStyle = '#000';
-            ctx.fillText(currentDisplayValue, d20X + 1.8, d20Y + 14);
-            ctx.fillStyle = currentDisplayValue === 20 ? theme.goldLight : (currentDisplayValue === 1 ? theme.hpRuby : theme.goldPrimary);
-            ctx.fillText(currentDisplayValue, d20X, d20Y + 12);
+            // 4. Render True 3D Regular Icosahedron (D20)
+            draw3DD20(d20X, d20Y, d20Radius, curRotX, curRotY, curRotZ, d20ScaleX, d20ScaleY, currentDisplayValue);
 
             // Bottom Status: Line 1 Date (only shown when banner is NOT active to guarantee zero collision)
             if (rollState === 'IDLE' || rollState === 'ROLLING') {
@@ -1174,73 +1412,208 @@
             });
         }
 
-        function drawShadedD20(cx, cy, r, rot) {
+        function rotate3D(p, rx, ry, rz) {
+            let x = p[0], y = p[1], z = p[2];
+            // Rotate X
+            if (rx !== 0) {
+                const c = Math.cos(rx), s = Math.sin(rx);
+                const y1 = y * c - z * s;
+                const z1 = y * s + z * c;
+                y = y1; z = z1;
+            }
+            // Rotate Y
+            if (ry !== 0) {
+                const c = Math.cos(ry), s = Math.sin(ry);
+                const x1 = x * c + z * s;
+                const z1 = -x * s + z * c;
+                x = x1; z = z1;
+            }
+            // Rotate Z
+            if (rz !== 0) {
+                const c = Math.cos(rz), s = Math.sin(rz);
+                const x1 = x * c - y * s;
+                const y1 = x * s + y * c;
+                x = x1; y = y1;
+            }
+            return { x, y, z };
+        }
+
+        function draw3DD20(cx, cy, r, rx, ry, rz, scaleX, scaleY, displayNum) {
+            const camDist = 4.2;
+
+            // 1. Transform all 12 vertices
+            const rotVerts = [];
+            const projVerts = [];
+            for (let i = 0; i < ICO_BASE_VERTS.length; i++) {
+                const rot = rotate3D(ICO_BASE_VERTS[i], rx, ry, rz);
+                rotVerts.push(rot);
+
+                const k = camDist / (camDist - rot.z);
+                const sx = cx + rot.x * k * r * scaleX;
+                const sy = cy - rot.y * k * r * scaleY; // Y inverted for screen
+                projVerts.push({ x: sx, y: sy, z: rot.z });
+            }
+
+            // 2. Compute face normals, lighting, and cull backfaces
+            const visibleFaces = [];
+            // Directional Light from Upper-Left: normalize([-0.35, 0.60, 0.70])
+            const lx = -0.354, ly = 0.607, lz = 0.708;
+            // Half-way vector: normalize(L + [0, 0, 1])
+            const hx = -0.187, hy = 0.320, hz = 0.928;
+
+            for (let fIdx = 0; fIdx < ICO_FACES.length; fIdx++) {
+                const f = ICO_FACES[fIdx];
+                const p0 = rotVerts[f[0]];
+                const p1 = rotVerts[f[1]];
+                const p2 = rotVerts[f[2]];
+
+                // Cross product in 3D: (p1 - p0) x (p2 - p0)
+                const u1 = p1.x - p0.x, u2 = p1.y - p0.y, u3 = p1.z - p0.z;
+                const v1 = p2.x - p0.x, v2 = p2.y - p0.y, v3 = p2.z - p0.z;
+                let nx = u2 * v3 - u3 * v2;
+                let ny = u3 * v1 - u1 * v3;
+                let nz = u1 * v2 - u2 * v1;
+                const nLen = Math.hypot(nx, ny, nz);
+                if (nLen < 0.0001) continue;
+                nx /= nLen; ny /= nLen; nz /= nLen;
+
+                // Backface culling: only faces pointing towards camera
+                if (nz > 0.01) {
+                    const cz = (p0.z + p1.z + p2.z) / 3;
+                    const diff = Math.max(0, nx * lx + ny * ly + nz * lz);
+                    const spec = Math.pow(Math.max(0, nx * hx + ny * hy + nz * hz), 14);
+                    let intensity = 0.42 + 0.50 * diff + 0.38 * spec;
+                    if (fIdx === 1) intensity += 0.08; // radiant boost on target face
+
+                    visibleFaces.push({
+                        faceIndex: fIdx,
+                        indices: f,
+                        cz: cz,
+                        nz: nz,
+                        intensity: intensity,
+                        p2d: [projVerts[f[0]], projVerts[f[1]], projVerts[f[2]]]
+                    });
+                }
+            }
+
+            // 3. Sort visible faces from back to front (Painter's algorithm)
+            visibleFaces.sort((a, b) => a.cz - b.cz);
+
+            // 4. Render shaded facets
             ctx.save();
-            ctx.translate(cx, cy);
-            ctx.rotate(rot * Math.PI / 180);
+            ctx.lineJoin = 'round';
 
-            const outer = [];
-            for (let i = 0; i < 6; i++) {
-                const a = (i * Math.PI / 3) - (Math.PI / 6);
-                outer.push({ x: r * Math.cos(a), y: r * Math.sin(a) });
-            }
+            visibleFaces.forEach(vf => {
+                const p0 = vf.p2d[0];
+                const p1 = vf.p2d[1];
+                const p2 = vf.p2d[2];
 
-            const inner = [];
-            const ir = r * 0.52;
-            for (let i = 0; i < 3; i++) {
-                const a = (i * 2 * Math.PI / 3) - (Math.PI / 2);
-                inner.push({ x: ir * Math.cos(a), y: ir * Math.sin(a) });
-            }
-
-            const facets = [
-                { pts: [inner[0], inner[1], inner[2]], light: 1.10 },
-                { pts: [outer[0], outer[1], inner[0]], light: 1.25 },
-                { pts: [outer[1], outer[2], inner[1]], light: 0.85 },
-                { pts: [outer[2], outer[3], inner[1]], light: 0.65 },
-                { pts: [outer[3], outer[4], inner[2]], light: 0.60 },
-                { pts: [outer[4], outer[5], inner[2]], light: 0.75 },
-                { pts: [outer[5], outer[0], inner[0]], light: 1.15 }
-            ];
-
-            facets.forEach(f => {
-                ctx.fillStyle = hexToShade(theme.goldPrimary, f.light);
+                // Facet fill
+                ctx.fillStyle = hexToShade(theme.goldPrimary, vf.intensity);
                 ctx.beginPath();
-                ctx.moveTo(f.pts[0].x, f.pts[0].y);
-                ctx.lineTo(f.pts[1].x, f.pts[1].y);
-                ctx.lineTo(f.pts[2].x, f.pts[2].y);
+                ctx.moveTo(p0.x, p0.y);
+                ctx.lineTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
                 ctx.closePath();
                 ctx.fill();
+
+                // Inner facet border (metallic beveled ridge)
                 ctx.strokeStyle = theme.goldLight;
-                ctx.lineWidth = 1;
+                ctx.globalAlpha = Math.min(1.0, 0.35 + vf.intensity * 0.45);
+                ctx.lineWidth = 1.1;
                 ctx.stroke();
+                ctx.globalAlpha = 1.0;
+
+                // Subtle filigree highlight on main front faces
+                if (vf.nz > 0.55) {
+                    ctx.strokeStyle = theme.goldLight;
+                    ctx.globalAlpha = 0.22 * vf.nz;
+                    ctx.beginPath();
+                    const mx = (p0.x + p1.x) / 2;
+                    const my = (p0.y + p1.y) / 2;
+                    ctx.moveTo(mx, my);
+                    ctx.quadraticCurveTo((mx + p2.x) / 2, (my + p2.y) / 2, p2.x, p2.y);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1.0;
+                }
             });
 
-            // Ornate Filigree curves
-            ctx.strokeStyle = theme.goldLight;
-            ctx.globalAlpha = 0.35;
-            for (let i = 0; i < 3; i++) {
-                ctx.beginPath();
-                ctx.arc(inner[i].x, inner[i].y, 14, 0, Math.PI);
-                ctx.stroke();
-            }
-            ctx.globalAlpha = 1.0;
+            // 5. Draw outer silhouette metallic rim
+            const edgeCount = new Map();
+            visibleFaces.forEach(vf => {
+                const inds = vf.indices;
+                for (let i = 0; i < 3; i++) {
+                    const a = Math.min(inds[i], inds[(i + 1) % 3]);
+                    const b = Math.max(inds[i], inds[(i + 1) % 3]);
+                    const key = `${a}_${b}`;
+                    edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
+                }
+            });
 
-            // Outer Rim
             ctx.strokeStyle = theme.goldPrimary;
             ctx.lineWidth = 2.4;
             ctx.beginPath();
-            ctx.moveTo(outer[0].x, outer[0].y);
-            for (let i = 1; i < 6; i++) ctx.lineTo(outer[i].x, outer[i].y);
-            ctx.closePath();
+            edgeCount.forEach((count, key) => {
+                if (count === 1) {
+                    const [vA, vB] = key.split('_').map(Number);
+                    ctx.moveTo(projVerts[vA].x, projVerts[vA].y);
+                    ctx.lineTo(projVerts[vB].x, projVerts[vB].y);
+                }
+            });
             ctx.stroke();
 
-            // Rivets
-            outer.forEach(p => {
-                ctx.fillStyle = theme.goldLight;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
-                ctx.fill();
+            // 6. Draw corner metallic studs / rivets on front-facing vertices
+            projVerts.forEach(pv => {
+                if (pv.z > -0.25) {
+                    ctx.fillStyle = theme.goldLight;
+                    ctx.beginPath();
+                    ctx.arc(pv.x, pv.y, 2.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = theme.goldDark;
+                    ctx.lineWidth = 0.6;
+                    ctx.stroke();
+                }
             });
+
+            // 7. Numerals on facets
+            // A. Faint neighboring numbers on angled facets
+            visibleFaces.forEach(vf => {
+                if (vf.faceIndex !== 1 && vf.nz > 0.28) {
+                    const cxF = (vf.p2d[0].x + vf.p2d[1].x + vf.p2d[2].x) / 3;
+                    const cyF = (vf.p2d[0].y + vf.p2d[1].y + vf.p2d[2].y) / 3;
+                    const num = D20_FACE_NUMBERS[vf.faceIndex];
+                    const numSize = Math.max(8, Math.round(14 * vf.nz * scaleY));
+
+                    ctx.font = `bold ${numSize}px Cinzel, serif`;
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = theme.goldDark;
+                    ctx.globalAlpha = (vf.nz - 0.2) * 0.75;
+                    ctx.fillText(num, cxF, cyF + numSize * 0.35);
+                    ctx.globalAlpha = 1.0;
+                }
+            });
+
+            // B. Main roll number engraved into Face 1
+            const face1 = visibleFaces.find(f => f.faceIndex === 1);
+            if (face1 && face1.nz > 0.15) {
+                const cx1 = (face1.p2d[0].x + face1.p2d[1].x + face1.p2d[2].x) / 3;
+                const cy1 = (face1.p2d[0].y + face1.p2d[1].y + face1.p2d[2].y) / 3;
+                const fontSize = Math.max(16, Math.round(34 * face1.nz * scaleY));
+
+                ctx.font = `bold ${fontSize}px Cinzel, serif`;
+                ctx.textAlign = 'center';
+
+                // Deep engraved drop-shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+                ctx.fillText(displayNum, cx1 + 1.8, cy1 + fontSize * 0.36 + 1.8);
+
+                // Engraved metallic numeral
+                let numColor = theme.goldPrimary;
+                if (displayNum === 20) numColor = theme.goldLight;
+                else if (displayNum === 1) numColor = theme.hpRuby;
+                ctx.fillStyle = numColor;
+                ctx.fillText(displayNum, cx1, cy1 + fontSize * 0.36);
+            }
 
             ctx.restore();
         }
@@ -1255,28 +1628,47 @@
         }
 
         function drawD20Wireframe(cx, cy, r, color) {
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 1.6;
-            ctx.beginPath();
-            for (let i = 0; i < 6; i++) {
-                const a = (i * Math.PI / 3) - (Math.PI / 6);
-                const x = cx + r * Math.cos(a);
-                const y = cy + r * Math.sin(a);
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            const camDist = 4.2;
+            const projVerts = [];
+            for (let i = 0; i < ICO_BASE_VERTS.length; i++) {
+                const k = camDist / (camDist - ICO_BASE_VERTS[i][2]);
+                const sx = cx + ICO_BASE_VERTS[i][0] * k * r;
+                const sy = cy - ICO_BASE_VERTS[i][1] * k * r;
+                projVerts.push({ x: sx, y: sy });
             }
-            ctx.closePath();
-            ctx.stroke();
 
-            const ir = r * 0.52;
-            ctx.beginPath();
-            for (let i = 0; i < 3; i++) {
-                const a = (i * 2 * Math.PI / 3) - (Math.PI / 2);
-                const x = cx + ir * Math.cos(a);
-                const y = cy + ir * Math.sin(a);
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.4;
+
+            // Draw wireframe edges of front-facing icosahedral faces
+            const edgeDrawn = new Set();
+            for (let fIdx = 0; fIdx < ICO_FACES.length; fIdx++) {
+                const f = ICO_FACES[fIdx];
+                const p0 = ICO_BASE_VERTS[f[0]];
+                const p1 = ICO_BASE_VERTS[f[1]];
+                const p2 = ICO_BASE_VERTS[f[2]];
+
+                const u1 = p1[0] - p0[0], u2 = p1[1] - p0[1], u3 = p1[2] - p0[2];
+                const v1 = p2[0] - p0[0], v2 = p2[1] - p0[1], v3 = p2[2] - p0[2];
+                const nz = u1 * v2 - u2 * v1;
+
+                if (nz > 0.01) {
+                    for (let i = 0; i < 3; i++) {
+                        const a = Math.min(f[i], f[(i + 1) % 3]);
+                        const b = Math.max(f[i], f[(i + 1) % 3]);
+                        const key = `${a}_${b}`;
+                        if (!edgeDrawn.has(key)) {
+                            edgeDrawn.add(key);
+                            ctx.beginPath();
+                            ctx.moveTo(projVerts[a].x, projVerts[a].y);
+                            ctx.lineTo(projVerts[b].x, projVerts[b].y);
+                            ctx.stroke();
+                        }
+                    }
+                }
             }
-            ctx.closePath();
-            ctx.stroke();
+            ctx.restore();
         }
 
         function drawPill(x, y, text) {

@@ -26,7 +26,9 @@ import com.bg3.watchface.sensor.StepSensorManager
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.pow
 import kotlin.math.sin
 
 /**
@@ -376,7 +378,12 @@ class BG3CanvasRenderer(
     ) {
         var drawX = centerX
         var drawY = centerY
-        var rotation = 0f
+        val rotX = rollController.curRotX
+        val rotY = rollController.curRotY
+        val rotZ = rollController.curRotZ
+        val hopY = rollController.hopY
+        val scaleX = rollController.scaleX
+        val scaleY = rollController.scaleY
         var displayNum = 20
 
         when (val state = rollController.currentState) {
@@ -387,7 +394,6 @@ class BG3CanvasRenderer(
             is RollState.Rolling -> {
                 drawX += state.shakeOffsetX
                 drawY += state.shakeOffsetY
-                rotation = state.rotationDegrees
                 displayNum = state.displayValue
                 paints.d20StrokePaint.alpha = 255
             }
@@ -418,38 +424,59 @@ class BG3CanvasRenderer(
             }
         }
 
+        // 1. Dynamic Drop Shadow underneath 3D die
+        val shadowY = centerY + radius * 0.74f
+        val hopNorm = (abs(hopY) / 24f).coerceIn(0f, 1f)
+        val shadowRadiusX = radius * (1.08f - 0.22f * hopNorm) * scaleX
+        val shadowRadiusY = 12f * (1.0f - 0.35f * hopNorm)
+        val shadowAlpha = (0.52f * (1.0f - 0.42f * hopNorm) * 255).toInt().coerceIn(0, 255)
+
+        val shadowBounds = RectF(centerX - shadowRadiusX, shadowY - shadowRadiusY, centerX + shadowRadiusX, shadowY + shadowRadiusY)
+        paints.bannerBgPaint.color = Color.argb(shadowAlpha, 0, 0, 0)
+        canvas.drawOval(shadowBounds, paints.bannerBgPaint)
+
+        // 2. Arcane Impact Dual Shockwave Ripple
+        if (rollController.shockwaveProgress < 1f) {
+            val swProgress = rollController.shockwaveProgress
+            val swRadius1 = 20f + (radius * 2.2f - 20f) * swProgress.pow(0.60f)
+            val swRadius2 = 14f + (radius * 1.6f - 14f) * swProgress.pow(0.75f)
+            val swAlpha = ((1f - swProgress).pow(1.8f) * 255).toInt().coerceIn(0, 255)
+
+            paints.arcGlowPaint.strokeWidth = 3.6f * (1f - swProgress)
+            val shockwaveColor = when (rollController.currentState) {
+                is RollState.CriticalSuccess -> currentTheme.goldLight
+                is RollState.CriticalFailure -> currentTheme.hpRuby
+                else -> currentTheme.goldPrimary
+            }
+            paints.arcGlowPaint.color = (shockwaveColor and 0x00FFFFFF) or (swAlpha shl 24)
+            canvas.drawCircle(centerX, centerY, swRadius1, paints.arcGlowPaint)
+
+            paints.arcGlowPaint.strokeWidth = 1.8f * (1f - swProgress)
+            paints.arcGlowPaint.color = (currentTheme.goldLight and 0x00FFFFFF) or ((swAlpha * 0.65f).toInt() shl 24)
+            canvas.drawCircle(centerX, centerY, swRadius2, paints.arcGlowPaint)
+        }
+
+        // 3. Render 3D Icosahedron (D20)
         d20Geometry.drawActiveD20(
             canvas = canvas,
             centerX = drawX,
-            centerY = drawY,
+            centerY = drawY + hopY,
             radius = radius,
-            rotationDegrees = rotation,
+            rotX = rotX,
+            rotY = rotY,
+            rotZ = rotZ,
+            scaleX = scaleX,
+            scaleY = scaleY,
+            displayNum = displayNum,
             fillPaint = paints.d20FillPaint,
             strokePaint = paints.d20StrokePaint,
             innerStrokePaint = paints.d20InnerStrokePaint,
             filigreePaint = paints.d20FiligreePaint,
+            numberPaint = paints.d20NumberPaint,
             primaryColor = currentTheme.goldPrimary,
-            lightColor = currentTheme.goldLight
+            lightColor = currentTheme.goldLight,
+            failColor = currentTheme.hpRuby
         )
-
-        renderCentralNumber(canvas, drawX, drawY, radius, displayNum)
-    }
-
-    private fun renderCentralNumber(canvas: Canvas, x: Float, y: Float, radius: Float, number: Int) {
-        val numStr = number.toString()
-        paints.d20NumberPaint.textSize = radius * 0.65f
-        paints.d20NumberPaint.getTextBounds(numStr, 0, numStr.length, textBounds)
-        val textY = y + (textBounds.height() * 0.38f)
-
-        paints.d20NumberPaint.color = Color.BLACK
-        canvas.drawText(numStr, x + 1.8f, textY + 2.2f, paints.d20NumberPaint)
-
-        paints.d20NumberPaint.color = when (number) {
-            20 -> currentTheme.goldLight
-            1 -> currentTheme.hpRuby
-            else -> currentTheme.goldPrimary
-        }
-        canvas.drawText(numStr, x, textY, paints.d20NumberPaint)
     }
 
     private fun renderBanner(canvas: Canvas, x: Float, y: Float, text: String, accentColor: Int) {

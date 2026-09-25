@@ -15,7 +15,22 @@ Esfera de reloj interactiva, animada y de alta fidelidad inspirada en el univers
 
 ## ⚔️ Nuevas Mejoras de Experiencia de Usuario (UX Avanzada)
 
-### 1. Sistema Dinámico de Tiradas de Salvación (D&D 5e / BG3 Mechanics)
+### 1. Dado D20 Icosaédrico Real en 3D & Física de Tirada Cinemática
+- **Geometría Matemática de Icosaedro Regular (3D Real)**:
+  - Sustitución completa de polígonos planos 2D por un **modelo tridimensional de 12 vértices normalizados y 20 caras triangulares**.
+  - **Orientación Canónica de Reposo**: La cara principal `[0, 5, 1]` descansa perfectamente plana y centrada frente al observador, con el vértice superior apuntando hacia arriba y una base horizontal estable.
+  - **Iluminación Direccional Blinn-Phong**: Fuente de luz arcana superior izquierda que proyecta reflejos especulares metálicos y sombras difusas realistas sobre las facetas según su orientación tridimensional.
+  - **Detalles Ornamentales**: Rebordes metálicos biselados, remaches dorados en los vértices visibles y numerales esculpidos con sombreado de grabado profundo.
+- **Física de Tirada Mejorada (Cinemática Visceral)**:
+  - **Tirada Multi-Eje en 3D**: Rotación simultánea de alta energía en los ejes X, Y y Z (~35-50 rad/s) donde las 20 caras y sus números giran en perspectiva real.
+  - **Elevación Vertical y Escala de Profundidad (Hop & Parallax)**: El dado se eleva verticalmente (-24 px) y aumenta de tamaño hacia el usuario durante el lanzamiento.
+  - **Sombra Proyectada Dinámica**: Sombra elíptica bajo el dado que se atenúa y contrae conforme se eleva, y se fija firmemente al aterrizar.
+  - **Desaceleración Cúbica y Alineación Suave**: Transición matemática $(1 - p)^3$ durante los últimos 420 ms que frena la rotación y orienta suavemente la cara ganadora hacia el frente sin saltos bruscos.
+  - **Impacto y Onda de Choque Arcana (Shockwave)**: Al aterrizar en $t = 1300\,\text{ms}$, se genera un golpe con compresión vertical de rebote (squash/rebound), vibración háptica pesada de impacto (255 de intensidad) y una **onda de choque expansiva concéntrica de doble anillo**.
+  - **Audio de Impacto Procedural**: Sonido sintetizado en tiempo real con golpe sub-grave de 115 Hz a 32 Hz y chasquido metálico de piedra.
+  - **Modo AOD Icosaédrico**: Elegante esquemática de alambre estelar en `#554522` con menos del 3% de consumo OPR en pantallas AMOLED.
+
+### 2. Sistema Dinámico de Tiradas de Salvación (D&D 5e / BG3 Mechanics)
 - **Dificultad de Clase (DC / CD)**: Establece un objetivo de dificultad interactivo (**CD 10, CD 15, CD 18 o CD 20**).
 - **Modificadores de Habilidad**: Cambia entre las 6 características clásicas:
   - **Fuerza (FUE +3)**
