@@ -736,34 +736,44 @@
             const dist = Math.hypot(x - cx, y - cy);
 
             // 1. Center D20
-            if (dist <= 75) {
+            if (dist <= 65) {
                 triggerRoll();
                 return;
             }
 
-            // 2. Top Clock Area
-            if (y < 125) {
+            // 2. DC / Skill Pill Badge
+            if (y >= 120 && y <= 150 && Math.abs(x - cx) <= 90) {
+                const abilities = Object.keys(ABILITIES);
+                const nextIdx = (abilities.indexOf(currentAbilityKey) + 1) % abilities.length;
+                currentAbilityKey = abilities[nextIdx];
+                document.getElementById('abilitySelect').value = currentAbilityKey;
+                playNormalClickSound();
+                return;
+            }
+
+            // 3. Top Clock Area
+            if (y < 118) {
                 timeMode = timeMode === '24H' ? '12H' : '24H';
                 cycleTheme();
                 playNormalClickSound();
                 return;
             }
 
-            // 3. Left Arc (HP)
-            if (x < cx - 110 && y > 130 && y < 320) {
+            // 4. Left Arc (HP)
+            if (x < cx - 90 && y > 130 && y < 315) {
                 batteryMode = batteryMode === 'PERCENTAGE' ? 'HOURS' : 'PERCENTAGE';
                 playNormalClickSound();
                 return;
             }
 
-            // 4. Right Arc (XP)
-            if (x > cx + 110 && y > 130 && y < 320) {
+            // 5. Right Arc (XP)
+            if (x > cx + 90 && y > 130 && y < 315) {
                 xpMode = xpMode === 'STEPS' ? 'KM' : (xpMode === 'KM' ? 'KCAL' : 'STEPS');
                 playNormalClickSound();
                 return;
             }
 
-            // 5. Bottom (Weather on left, Calendar on right)
+            // 6. Bottom (Weather on left, Calendar on right)
             if (y > 330) {
                 if (x < cx) {
                     tempUnit = tempUnit === 'C' ? 'F' : 'C';
@@ -949,7 +959,7 @@
             const h = canvas.height;
             const cx = w / 2;
             const cy = h / 2;
-            const d20Radius = 74;
+            const d20Radius = 60;
 
             if (isAmbient) {
                 // AOD MODE
@@ -957,19 +967,19 @@
                 ctx.fillRect(0, 0, w, h);
 
                 ctx.fillStyle = '#AAAAAA';
-                ctx.font = 'bold 54px Cinzel, serif';
+                ctx.font = 'bold 48px Cinzel, serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(getTimeString(), cx, h * 0.22);
+                ctx.fillText(getTimeString(), cx, h * 0.215);
 
                 drawD20Wireframe(cx, cy, d20Radius, '#554522');
 
                 ctx.fillStyle = '#AAAAAA';
-                ctx.font = 'bold 32px Cinzel, serif';
-                ctx.fillText(currentDisplayValue, cx, cy + 12);
+                ctx.font = 'bold 30px Cinzel, serif';
+                ctx.fillText(currentDisplayValue, cx, cy + 11);
 
-                ctx.font = '15px Inter, sans-serif';
+                ctx.font = '13px Inter, sans-serif';
                 ctx.fillStyle = '#777';
-                ctx.fillText(`${getDateString()} • ${getTempDisplay()} • HP ${Math.round(batteryLevel * 100)}%`, cx, h * 0.84);
+                ctx.fillText(`${getDateString()} • ${getTempDisplay()} • HP ${Math.round(batteryLevel * 100)}%`, cx, h * 0.82);
                 return;
             }
 
@@ -985,25 +995,31 @@
 
             // Runic Summoning Ring
             ctx.strokeStyle = theme.goldDark;
-            ctx.lineWidth = 1.2;
-            ctx.globalAlpha = 0.5 * breathing;
+            ctx.lineWidth = 1.0;
+            ctx.globalAlpha = 0.22 * breathing;
             ctx.beginPath();
             ctx.arc(cx, cy, w * 0.445, 0, Math.PI * 2);
             ctx.stroke();
 
-            ctx.lineWidth = 0.8;
+            ctx.lineWidth = 0.6;
             ctx.beginPath();
             ctx.arc(cx, cy, w * 0.405, 0, Math.PI * 2);
             ctx.stroke();
 
             ctx.fillStyle = theme.goldLight;
-            ctx.font = '15px serif';
+            ctx.font = '14px serif';
             ctx.textAlign = 'center';
             const runeR = w * 0.425;
             RUNES.forEach((rune, i) => {
                 const angle = (i * 360 / RUNES.length - 90) * Math.PI / 180;
                 const deg = i * 360 / RUNES.length - 90;
-                if ((deg > 125 && deg < 235) || (deg > -55 && deg < 55) || (deg > -110 && deg < -70)) return;
+                // Filter out Top (Clock & Title), Bottom (Date & Weather/HR), Right (XP Arc), Left (HP Arc)
+                const isTop = deg >= -120 && deg <= -60;
+                const isBottom = deg >= 60 && deg <= 120;
+                const isRight = deg >= -45 && deg <= 45;
+                const isLeft = (deg >= 135 && deg <= 225) || (deg >= -225 && deg <= -135);
+                if (isTop || isBottom || isRight || isLeft) return;
+
                 const rx = cx + runeR * Math.cos(angle);
                 const ry = cy + runeR * Math.sin(angle);
                 ctx.fillText(rune, rx, ry + 5);
@@ -1036,10 +1052,10 @@
                 ctx.stroke();
             }
 
-            ctx.font = 'bold 13px Cinzel, serif';
+            ctx.font = 'bold 12px Cinzel, serif';
             ctx.fillStyle = theme.hpRuby;
             const hpText = batteryMode === 'PERCENTAGE' ? `HP ${Math.round(batteryLevel * 100)}%` : `${Math.round(batteryLevel * 24)}h BAT`;
-            ctx.fillText(hpText, cx - arcR + 25, cy + 5);
+            ctx.fillText(hpText, cx - arcR * 0.65, cy + 4);
 
             // Right XP Arc
             const xpStart = -42 * Math.PI / 180;
@@ -1066,30 +1082,30 @@
                 ctx.stroke();
             }
 
-            ctx.font = 'bold 13px Cinzel, serif';
+            ctx.font = 'bold 12px Cinzel, serif';
             ctx.fillStyle = theme.xpArcane;
             let xpText = `${(stepCount / 1000).toFixed(1)}k XP`;
             if (xpMode === 'KM') xpText = `${(stepCount * 0.00075).toFixed(1)} km`;
             else if (xpMode === 'KCAL') xpText = `${Math.round(stepCount * 0.045)} kcal`;
-            ctx.fillText(xpText, cx + arcR - 25, cy + 5);
+            ctx.fillText(xpText, cx + arcR * 0.65, cy + 4);
 
             // Top Digital Clock
             ctx.font = '11px Cinzel, serif';
             ctx.fillStyle = theme.goldDark;
-            ctx.fillText(`‹ ${timeMode} • ${theme.title} ›`, cx, h * 0.125);
+            ctx.fillText(`‹ ${timeMode} • ${theme.title} ›`, cx, h * 0.12);
 
-            ctx.font = 'bold 54px Cinzel, serif';
+            ctx.font = 'bold 48px Cinzel, serif';
             ctx.fillStyle = '#000';
-            ctx.fillText(getTimeString(), cx + 2, h * 0.22 + 2);
+            ctx.fillText(getTimeString(), cx + 2, h * 0.215 + 2);
             ctx.fillStyle = theme.goldPrimary;
             ctx.shadowColor = theme.goldPrimary + '88';
             ctx.shadowBlur = 12;
-            ctx.fillText(getTimeString(), cx, h * 0.22);
+            ctx.fillText(getTimeString(), cx, h * 0.215);
             ctx.shadowBlur = 0;
 
             // DC / Skill Pill Badge
             const ability = ABILITIES[currentAbilityKey];
-            drawPill(cx, cy - d20Radius * 1.08, `• ${ability.code} +${ability.mod}  |  CD ${currentDC} •`);
+            drawPill(cx, h * 0.305, `• ${ability.code} +${ability.mod}  |  CD ${currentDC} •`);
 
             // Central D20
             const d20X = cx + shakeOffsetX;
@@ -1098,43 +1114,45 @@
             if (rollState === 'CRITICAL_SUCCESS') {
                 ctx.fillStyle = theme.goldLight + '44';
                 ctx.beginPath();
-                ctx.arc(cx, cy, d20Radius * 1.4, 0, Math.PI * 2);
+                ctx.arc(cx, cy, d20Radius * 1.35, 0, Math.PI * 2);
                 ctx.fill();
-                drawBanner(cx, cy + d20Radius * 1.38, "¡ÉXITO CRÍTICO (20)!", theme.bannerSuccess);
+                drawBanner(cx, h * 0.74, "¡ÉXITO CRÍTICO (20)!", theme.bannerSuccess);
             } else if (rollState === 'CRITICAL_FAIL') {
                 ctx.fillStyle = theme.hpRuby + '44';
                 ctx.beginPath();
-                ctx.arc(cx, cy, d20Radius * 1.4, 0, Math.PI * 2);
+                ctx.arc(cx, cy, d20Radius * 1.35, 0, Math.PI * 2);
                 ctx.fill();
-                drawBanner(cx, cy + d20Radius * 1.38, "¡PIFIA CRÍTICA (1)!", theme.bannerFail);
+                drawBanner(cx, h * 0.74, "¡PIFIA CRÍTICA (1)!", theme.bannerFail);
             } else if (rollState === 'SETTLED' && lastSettledData) {
                 const bannerMsg = lastSettledData.isPassed 
                     ? `¡SUPERADO! (${lastSettledData.total} ≥ CD ${lastSettledData.dc})`
                     : `¡FALLADO! (${lastSettledData.total} < CD ${lastSettledData.dc})`;
                 const bannerColor = lastSettledData.isPassed ? theme.bannerSuccess : theme.bannerFail;
-                drawBanner(cx, cy + d20Radius * 1.38, bannerMsg, bannerColor);
+                drawBanner(cx, h * 0.74, bannerMsg, bannerColor);
             }
 
             drawShadedD20(d20X, d20Y, d20Radius, rotationAngle);
 
             // D20 Number
-            ctx.font = 'bold 42px Cinzel, serif';
+            ctx.font = 'bold 36px Cinzel, serif';
             ctx.fillStyle = '#000';
-            ctx.fillText(currentDisplayValue, d20X + 2, d20Y + 15);
+            ctx.fillText(currentDisplayValue, d20X + 1.8, d20Y + 14);
             ctx.fillStyle = currentDisplayValue === 20 ? theme.goldLight : (currentDisplayValue === 1 ? theme.hpRuby : theme.goldPrimary);
-            ctx.fillText(currentDisplayValue, d20X, d20Y + 13);
+            ctx.fillText(currentDisplayValue, d20X, d20Y + 12);
 
-            // Bottom Status: Line 1 Date
-            ctx.font = '15px Cinzel, serif';
-            ctx.fillStyle = theme.goldLight;
-            ctx.fillText(getDateString(), cx, h * 0.76);
+            // Bottom Status: Line 1 Date (only shown when banner is NOT active to guarantee zero collision)
+            if (rollState === 'IDLE' || rollState === 'ROLLING') {
+                ctx.font = '14px Cinzel, serif';
+                ctx.fillStyle = theme.goldLight;
+                ctx.fillText(getDateString(), cx, h * 0.76);
+            }
 
             // Bottom Status: Line 2 Weather & Heart Rate dual bar
-            ctx.font = 'bold 13px Inter, sans-serif';
+            ctx.font = 'bold 12px Inter, sans-serif';
             ctx.fillStyle = theme.goldLight;
             const wObj = WEATHER_CONDITIONS[currentWeatherKey];
             const bottomCombined = `${wObj.glyph} ${getTempDisplay()} ${wObj.name}  •  ♥ 72 BPM`;
-            ctx.fillText(bottomCombined, cx, h * 0.84);
+            ctx.fillText(bottomCombined, cx, h * 0.845);
 
             // Particles
             particles.forEach(p => {
@@ -1268,17 +1286,17 @@
         }
 
         function drawBanner(x, y, text, color) {
-            ctx.font = 'bold 14px Cinzel, serif';
+            ctx.font = 'bold 12.5px Cinzel, serif';
             const m = ctx.measureText(text);
             const bw = m.width + 24;
-            const bh = 24;
-            ctx.fillStyle = 'rgba(10, 10, 14, 0.9)';
+            const bh = 22;
+            ctx.fillStyle = 'rgba(10, 10, 14, 0.92)';
             ctx.fillRect(x - bw / 2, y - bh / 2, bw, bh);
             ctx.strokeStyle = color;
             ctx.lineWidth = 1.2;
             ctx.strokeRect(x - bw / 2, y - bh / 2, bw, bh);
             ctx.fillStyle = color;
-            ctx.fillText(text, x, y + 5);
+            ctx.fillText(text, x, y + 4.5);
         }
 
         function getTimeString() {

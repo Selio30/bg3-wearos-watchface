@@ -6,15 +6,16 @@ package com.bg3.watchface.model
 enum class WeatherCondition(
     val glyph: String,
     val standardName: String,
-    val faerunLoreName: String
+    val faerunLoreName: String,
+    val shortName: String = standardName
 ) {
-    SUNNY("☀️", "Despejado", "Sol de Lathander"),
-    PARTLY_CLOUDY("⛅", "Parcialmente Nublado", "Vientos de Selûne"),
-    CLOUDY("☁️", "Nublado", "Brumas de la Costa"),
-    RAINY("🌧️", "Lluvia", "Lágrimas de Ilmater"),
-    THUNDERSTORM("⛈️", "Tormenta", "Furia de Talos"),
-    SNOWY("❄️", "Nieve", "Aliento de Auril"),
-    MISTY("🌫️", "Niebla", "Niebla de la Infraoscuridad");
+    SUNNY("☀️", "Despejado", "Sol de Lathander", "Despejado"),
+    PARTLY_CLOUDY("⛅", "Parcialmente Nublado", "Vientos de Selûne", "Nublado"),
+    CLOUDY("☁️", "Nublado", "Brumas de la Costa", "Nublado"),
+    RAINY("🌧️", "Lluvia", "Lágrimas de Ilmater", "Lluvia"),
+    THUNDERSTORM("⛈️", "Tormenta", "Furia de Talos", "Tormenta"),
+    SNOWY("❄️", "Nieve", "Aliento de Auril", "Nieve"),
+    MISTY("🌫️", "Niebla", "Niebla de la Infraoscuridad", "Niebla");
 
     fun next(): WeatherCondition {
         val vals = values()

@@ -114,7 +114,7 @@ class BG3CanvasRenderer(
         val height = bounds.height().toFloat()
         val centerX = bounds.exactCenterX()
         val centerY = bounds.exactCenterY()
-        val d20Radius = width * 0.165f
+        val d20Radius = width * 0.138f
 
         val nowMs = System.currentTimeMillis()
         val deltaSeconds = ((nowMs - lastFrameTimeMs).coerceIn(1L, 100L)).toFloat() / 1000f
@@ -140,17 +140,17 @@ class BG3CanvasRenderer(
         val width = bounds.width().toFloat()
         val height = bounds.height().toFloat()
 
-        paints.aodTimePaint.textSize = width * 0.125f
+        paints.aodTimePaint.textSize = width * 0.11f
         val timeStr = if (timeDisplayMode == TimeDisplayMode.FORMAT_24H) {
             zonedDateTime.format(time24Formatter)
         } else {
             zonedDateTime.format(time12Formatter)
         }
-        canvas.drawText(timeStr, centerX, height * 0.22f, paints.aodTimePaint)
+        canvas.drawText(timeStr, centerX, height * 0.215f, paints.aodTimePaint)
 
         d20Geometry.drawAmbientD20(canvas, centerX, centerY, d20Radius * 0.95f, paints.aodD20StrokePaint)
 
-        paints.aodSubtextPaint.textSize = d20Radius * 0.48f
+        paints.aodSubtextPaint.textSize = d20Radius * 0.50f
         val d20Text = when (val state = rollController.currentState) {
             is RollState.Settled -> state.value.toString()
             is RollState.CriticalSuccess -> "20"
@@ -159,10 +159,10 @@ class BG3CanvasRenderer(
         }
         canvas.drawText(d20Text, centerX, centerY + paints.aodSubtextPaint.textSize * 0.35f, paints.aodSubtextPaint)
 
-        paints.aodSubtextPaint.textSize = width * 0.038f
+        paints.aodSubtextPaint.textSize = width * 0.033f
         val weatherTemp = weatherManager.weatherInfo.displayTemp
         val bottomInfo = "${zonedDateTime.format(dateFormatter).uppercase()}  •  $weatherTemp  •  HP ${(batteryLevel * 100).toInt()}%"
-        canvas.drawText(bottomInfo, centerX, height * 0.84f, paints.aodSubtextPaint)
+        canvas.drawText(bottomInfo, centerX, height * 0.82f, paints.aodSubtextPaint)
     }
 
     private fun renderInteractiveMode(
@@ -209,7 +209,7 @@ class BG3CanvasRenderer(
         renderDigitalClock(canvas, zonedDateTime, centerX, height, width)
 
         // 5. Ability Check / DC Pill Badge above D20
-        renderSkillCheckBadge(canvas, centerX, centerY - d20Radius * 1.05f, width)
+        renderSkillCheckBadge(canvas, centerX, height * 0.30f, width)
 
         // 6. Central D20 Die & Rolls
         renderCentralD20(canvas, centerX, centerY, d20Radius, breathing)
@@ -224,24 +224,32 @@ class BG3CanvasRenderer(
     private fun renderSummoningRing(canvas: Canvas, cx: Float, cy: Float, width: Float, breathing: Float) {
         val ringR = width * 0.445f
         paints.ringStrokePaint.color = currentTheme.goldDark
-        paints.ringStrokePaint.alpha = (130 * breathing).toInt()
+        paints.ringStrokePaint.alpha = (50 * breathing).toInt()
+        paints.ringStrokePaint.strokeWidth = 0.9f
         canvas.drawCircle(cx, cy, ringR, paints.ringStrokePaint)
 
         val innerRingR = width * 0.405f
-        paints.ringStrokePaint.strokeWidth = 0.8f
-        paints.ringStrokePaint.alpha = (85 * breathing).toInt()
+        paints.ringStrokePaint.strokeWidth = 0.6f
+        paints.ringStrokePaint.alpha = (35 * breathing).toInt()
         canvas.drawCircle(cx, cy, innerRingR, paints.ringStrokePaint)
 
         val runes = BG3Theme.RUNIC_SYMBOLS
         val runeR = width * 0.425f
-        paints.runePaint.textSize = width * 0.034f
+        paints.runePaint.textSize = width * 0.032f
         paints.runePaint.color = currentTheme.goldLight
-        paints.runePaint.alpha = (160 * breathing).toInt()
+        paints.runePaint.alpha = (140 * breathing).toInt()
 
         val stepAngle = 360f / runes.size
         for (i in runes.indices) {
             val angleDeg = i * stepAngle - 90f
-            if (angleDeg in 125f..235f || angleDeg in -55f..55f || angleDeg in -110f..-70f) continue
+            // Filter out Top (Clock & Title), Bottom (Date & Weather/HR), Right (XP Arc), Left (HP Arc)
+            // Runes only appear as accent flourishes in the 4 diagonal corner sectors
+            val isTop = angleDeg in -120f..-60f
+            val isBottom = angleDeg in 60f..120f
+            val isRight = angleDeg in -45f..45f
+            val isLeft = angleDeg in 135f..225f || angleDeg in -225f..-135f
+            if (isTop || isBottom || isRight || isLeft) continue
+
             val angleRad = Math.toRadians(angleDeg.toDouble())
             val rx = (cx + runeR * cos(angleRad)).toFloat()
             val ry = (cy + runeR * sin(angleRad)).toFloat()
@@ -275,7 +283,7 @@ class BG3CanvasRenderer(
             canvas.drawArc(arcBounds, startAngle, progressSweep, false, paints.arcProgressPaint)
         }
 
-        paints.subtextPaint.textSize = width * 0.032f
+        paints.subtextPaint.textSize = width * 0.030f
         paints.subtextPaint.color = currentTheme.hpRuby
         val hpText = if (batteryDisplayMode == BatteryDisplayMode.PERCENTAGE) {
             "HP ${(batteryLevel * 100).toInt()}%"
@@ -283,7 +291,7 @@ class BG3CanvasRenderer(
             val hours = (batteryLevel * 24).toInt()
             "${hours}h BAT"
         }
-        val textR = radius - width * 0.055f
+        val textR = radius * 0.65f
         canvas.drawText(hpText, cx - textR, cy + paints.subtextPaint.textSize * 0.35f, paints.subtextPaint)
     }
 
@@ -309,14 +317,14 @@ class BG3CanvasRenderer(
             canvas.drawArc(arcBounds, startAngle, progressSweep, false, paints.arcProgressPaint)
         }
 
-        paints.subtextPaint.textSize = width * 0.032f
+        paints.subtextPaint.textSize = width * 0.030f
         paints.subtextPaint.color = currentTheme.xpArcane
         val xpText = when (stepsDisplayMode) {
             StepsDisplayMode.STEPS_XP -> if (stepCount >= 1000) "${String.format(Locale.US, "%.1f", stepCount / 1000f)}k XP" else "$stepCount XP"
             StepsDisplayMode.DISTANCE_KM -> String.format(Locale.US, "%.1f km", stepCount * 0.00075f)
             StepsDisplayMode.CALORIES_KCAL -> "${(stepCount * 0.045f).toInt()} kcal"
         }
-        val textR = radius - width * 0.055f
+        val textR = radius * 0.65f
         canvas.drawText(xpText, cx + textR, cy + paints.subtextPaint.textSize * 0.35f, paints.subtextPaint)
     }
 
@@ -326,10 +334,10 @@ class BG3CanvasRenderer(
         } else {
             zdt.format(time12Formatter)
         }
-        val timeY = height * 0.195f
+        val timeY = height * 0.215f
 
-        paints.timePaint.textSize = width * 0.122f
-        paints.timeShadowPaint.textSize = width * 0.122f
+        paints.timePaint.textSize = width * 0.11f
+        paints.timeShadowPaint.textSize = width * 0.11f
         paints.timePaint.color = currentTheme.goldPrimary
 
         canvas.drawText(timeStr, cx + 2f, timeY + 2.5f, paints.timeShadowPaint)
@@ -338,7 +346,7 @@ class BG3CanvasRenderer(
         paints.subtextPaint.textSize = width * 0.024f
         paints.subtextPaint.color = currentTheme.goldDark
         val badge = if (timeDisplayMode == TimeDisplayMode.FORMAT_24H) "‹ 24h • ${currentTheme.title} ›" else "‹ 12h • ${currentTheme.title} ›"
-        canvas.drawText(badge, cx, timeY - paints.timePaint.textSize * 0.85f, paints.subtextPaint)
+        canvas.drawText(badge, cx, timeY - paints.timePaint.textSize * 0.82f, paints.subtextPaint)
     }
 
     private fun renderSkillCheckBadge(canvas: Canvas, cx: Float, y: Float, width: Float) {
@@ -393,7 +401,7 @@ class BG3CanvasRenderer(
                     color = currentTheme.goldLight and 0x55FFFFFF or 0x66000000
                     strokeWidth = radius * 0.3f
                 })
-                renderBanner(canvas, centerX, centerY + radius * 1.38f, "¡ÉXITO CRÍTICO (20)!", currentTheme.bannerTextSuccess)
+                renderBanner(canvas, centerX, height * 0.74f, "¡ÉXITO CRÍTICO (20)!", currentTheme.bannerTextSuccess)
             }
             is RollState.CriticalFailure -> {
                 displayNum = 1
@@ -402,14 +410,14 @@ class BG3CanvasRenderer(
                     color = currentTheme.hpRuby and 0x55FFFFFF or 0x66000000
                     strokeWidth = radius * 0.3f
                 })
-                renderBanner(canvas, centerX, centerY + radius * 1.38f, "¡PIFIA CRÍTICA (1)!", currentTheme.bannerTextFail)
+                renderBanner(canvas, centerX, height * 0.74f, "¡PIFIA CRÍTICA (1)!", currentTheme.bannerTextFail)
             }
             is RollState.Settled -> {
                 displayNum = state.value
                 paints.d20StrokePaint.alpha = 255
                 val bannerMsg = if (state.isPassed) "¡SUPERADO! (${state.total} ≥ CD ${state.dc})" else "¡FALLADO! (${state.total} < CD ${state.dc})"
                 val bannerColor = if (state.isPassed) currentTheme.bannerTextSuccess else currentTheme.bannerTextFail
-                renderBanner(canvas, centerX, centerY + radius * 1.38f, bannerMsg, bannerColor)
+                renderBanner(canvas, centerX, height * 0.74f, bannerMsg, bannerColor)
             }
         }
 
@@ -448,10 +456,10 @@ class BG3CanvasRenderer(
     }
 
     private fun renderBanner(canvas: Canvas, x: Float, y: Float, text: String, accentColor: Int) {
-        paints.bannerTextPaint.textSize = 15f
+        paints.bannerTextPaint.textSize = 13.5f
         paints.bannerTextPaint.getTextBounds(text, 0, text.length, textBounds)
-        val bannerW = textBounds.width() + 32f
-        val bannerH = textBounds.height() + 14f
+        val bannerW = textBounds.width() + 28f
+        val bannerH = textBounds.height() + 12f
 
         val rect = RectF(x - bannerW / 2f, y - bannerH / 2f, x + bannerW / 2f, y + bannerH / 2f)
         paints.bannerBgPaint.color = Color.parseColor("#E60A0A0E")
@@ -472,26 +480,31 @@ class BG3CanvasRenderer(
         width: Float,
         breathing: Float
     ) {
-        val dateY = height * 0.76f
-        val statusY = height * 0.84f
+        val isSettledOrCritical = rollController.currentState is RollState.Settled ||
+                rollController.currentState is RollState.CriticalSuccess ||
+                rollController.currentState is RollState.CriticalFailure
 
-        val dateStr = if (calendarDisplayMode == CalendarDisplayMode.GREGORIAN) {
-            zdt.format(dateFormatter).uppercase(Locale.getDefault())
-        } else {
-            val monthIdx = zdt.monthValue - 1
-            "${zdt.dayOfMonth} ${BG3Theme.FAERUN_MONTHS[monthIdx].uppercase()}"
+        // Only draw date when outcome banner is not active to prevent any visual collision
+        if (!isSettledOrCritical) {
+            val dateY = height * 0.76f
+            val dateStr = if (calendarDisplayMode == CalendarDisplayMode.GREGORIAN) {
+                zdt.format(dateFormatter).uppercase(Locale.getDefault())
+            } else {
+                val monthIdx = zdt.monthValue - 1
+                "${zdt.dayOfMonth} ${BG3Theme.FAERUN_MONTHS[monthIdx].uppercase()}"
+            }
+
+            paints.subtextPaint.textSize = width * 0.034f
+            paints.subtextPaint.color = currentTheme.goldLight
+            canvas.drawText(dateStr, cx, dateY, paints.subtextPaint)
         }
-
-        paints.subtextPaint.textSize = width * 0.036f
-        paints.subtextPaint.color = currentTheme.goldLight
-        canvas.drawText(dateStr, cx, dateY, paints.subtextPaint)
 
         // Weather & Heart Rate dual status
         val weather = weatherManager.weatherInfo
-        val weatherText = "${weather.condition.glyph} ${weather.displayTemp} ${weather.condition.standardName}"
+        val weatherText = "${weather.condition.glyph} ${weather.displayTemp} ${weather.condition.shortName}"
         val bottomCombined = "$weatherText  •  ♥ 72 BPM"
 
-        paints.heartRatePaint.textSize = width * 0.032f
+        paints.heartRatePaint.textSize = width * 0.030f
         paints.heartRatePaint.color = currentTheme.goldLight
         canvas.drawText(bottomCombined, cx, statusY, paints.heartRatePaint)
     }
@@ -505,7 +518,7 @@ class BG3CanvasRenderer(
             val cy = bounds.exactCenterY()
             val width = bounds.width().toFloat()
             val height = bounds.height().toFloat()
-            val d20Radius = width * 0.165f
+            val d20Radius = width * 0.138f
 
             val tx = tapEvent.xPos.toFloat()
             val ty = tapEvent.yPos.toFloat()
@@ -518,7 +531,7 @@ class BG3CanvasRenderer(
                 }
 
                 // 2. Skill check / DC Badge Tap -> Cycle Ability
-                ty in (cy - d20Radius * 1.35f)..(cy - d20Radius * 0.8f) && tx in (cx - width * 0.35f)..(cx + width * 0.35f) -> {
+                ty in (height * 0.27f)..(height * 0.33f) && tx in (cx - width * 0.35f)..(cx + width * 0.35f) -> {
                     rollController.cycleAbility()
                     invalidate()
                 }
