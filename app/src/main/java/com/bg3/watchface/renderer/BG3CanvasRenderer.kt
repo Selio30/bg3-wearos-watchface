@@ -92,6 +92,7 @@ class BG3CanvasRenderer(
     private var lastWidth = -1f
     private var lastHeight = -1f
     private var lastFrameTimeMs = System.currentTimeMillis()
+    private var runeRingAngle = 0f
 
     // Formatters
     private val time24Formatter = DateTimeFormatter.ofPattern("HH:mm")
@@ -119,6 +120,10 @@ class BG3CanvasRenderer(
         val nowMs = System.currentTimeMillis()
         val deltaSeconds = ((nowMs - lastFrameTimeMs).coerceIn(1L, 100L)).toFloat() / 1000f
         lastFrameTimeMs = nowMs
+
+        val isRolling = rollController.currentState is RollState.Rolling
+        val spinSpeed = if (isRolling) 75f else 5.5f
+        runeRingAngle = (runeRingAngle + spinSpeed * deltaSeconds) % 360f
 
         if (renderParameters.drawMode == RenderParameters.DrawMode.AMBIENT) {
             renderAmbientMode(canvas, bounds, zonedDateTime, centerX, centerY, d20Radius)
@@ -222,34 +227,26 @@ class BG3CanvasRenderer(
     }
 
     private fun renderSummoningRing(canvas: Canvas, cx: Float, cy: Float, width: Float, breathing: Float) {
-        val ringR = width * 0.445f
+        val ringR = width * 0.472f
         paints.ringStrokePaint.color = currentTheme.goldDark
         paints.ringStrokePaint.alpha = (50 * breathing).toInt()
         paints.ringStrokePaint.strokeWidth = 0.9f
         canvas.drawCircle(cx, cy, ringR, paints.ringStrokePaint)
 
-        val innerRingR = width * 0.405f
+        val innerRingR = width * 0.430f
         paints.ringStrokePaint.strokeWidth = 0.6f
         paints.ringStrokePaint.alpha = (35 * breathing).toInt()
         canvas.drawCircle(cx, cy, innerRingR, paints.ringStrokePaint)
 
         val runes = BG3Theme.RUNIC_SYMBOLS
-        val runeR = width * 0.425f
-        paints.runePaint.textSize = width * 0.032f
+        val runeR = width * 0.451f
+        paints.runePaint.textSize = width * 0.027f
         paints.runePaint.color = currentTheme.goldLight
-        paints.runePaint.alpha = (140 * breathing).toInt()
+        paints.runePaint.alpha = (150 * breathing).toInt()
 
         val stepAngle = 360f / runes.size
         for (i in runes.indices) {
-            val angleDeg = i * stepAngle - 90f
-            // Filter out Top (Clock & Title), Bottom (Date & Weather/HR), Right (XP Arc), Left (HP Arc)
-            // Runes only appear as accent flourishes in the 4 diagonal corner sectors
-            val isTop = angleDeg in -120f..-60f
-            val isBottom = angleDeg in 60f..120f
-            val isRight = angleDeg in -45f..45f
-            val isLeft = angleDeg in 135f..225f || angleDeg in -225f..-135f
-            if (isTop || isBottom || isRight || isLeft) continue
-
+            val angleDeg = (i * stepAngle - 90f + runeRingAngle) % 360f
             val angleRad = Math.toRadians(angleDeg.toDouble())
             val rx = (cx + runeR * cos(angleRad)).toFloat()
             val ry = (cy + runeR * sin(angleRad)).toFloat()
@@ -262,7 +259,7 @@ class BG3CanvasRenderer(
     }
 
     private fun renderHpGauge(canvas: Canvas, cx: Float, cy: Float, width: Float) {
-        val radius = width * 0.42f
+        val radius = width * 0.405f
         arcBounds.set(cx - radius, cy - radius, cx + radius, cy + radius)
         val strokeW = width * 0.024f
         val startAngle = 138f
@@ -291,12 +288,12 @@ class BG3CanvasRenderer(
             val hours = (batteryLevel * 24).toInt()
             "${hours}h BAT"
         }
-        val textR = radius * 0.65f
+        val textR = radius * 0.62f
         canvas.drawText(hpText, cx - textR, cy + paints.subtextPaint.textSize * 0.35f, paints.subtextPaint)
     }
 
     private fun renderXpGauge(canvas: Canvas, cx: Float, cy: Float, width: Float) {
-        val radius = width * 0.42f
+        val radius = width * 0.405f
         arcBounds.set(cx - radius, cy - radius, cx + radius, cy + radius)
         val strokeW = width * 0.024f
         val startAngle = -42f
@@ -324,7 +321,7 @@ class BG3CanvasRenderer(
             StepsDisplayMode.DISTANCE_KM -> String.format(Locale.US, "%.1f km", stepCount * 0.00075f)
             StepsDisplayMode.CALORIES_KCAL -> "${(stepCount * 0.045f).toInt()} kcal"
         }
-        val textR = radius * 0.65f
+        val textR = radius * 0.62f
         canvas.drawText(xpText, cx + textR, cy + paints.subtextPaint.textSize * 0.35f, paints.subtextPaint)
     }
 

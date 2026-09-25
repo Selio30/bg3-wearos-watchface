@@ -673,6 +673,7 @@
         let shakeOffsetY = 0;
         let rotationAngle = 0;
         let lastSettledData = null;
+        let runeRingAngle = 0; // Continuous arcane rune rotation angle (degrees)
 
         const RUNES = ["ᚠ", "ᚢ", "ᚦ", "ᚨ", "ᚱ", "ᚲ", "ᚷ", "ᚹ", "ᚺ", "ᚾ", "ᛁ", "ᛃ", "ᛇ", "ᛈ", "ᛉ", "ᛋ", "ᛏ", "ᛒ", "ᛖ", "ᛗ", "ᛚ", "ᛜ", "ᛞ", "ᛟ"];
         const FAERUN_MONTHS = ["Millofrío", "Las Garras", "La Puesta", "Las Tormentas", "El Deshielo", "Las Flores", "Mareasol", "El Alto Sol", "El Desvanecer", "La Caída", "El Abrazo", "El Dibujo"];
@@ -760,14 +761,14 @@
             }
 
             // 4. Left Arc (HP)
-            if (x < cx - 90 && y > 130 && y < 315) {
+            if (x < cx - 85 && y > 130 && y < 315) {
                 batteryMode = batteryMode === 'PERCENTAGE' ? 'HOURS' : 'PERCENTAGE';
                 playNormalClickSound();
                 return;
             }
 
             // 5. Right Arc (XP)
-            if (x > cx + 90 && y > 130 && y < 315) {
+            if (x > cx + 85 && y > 130 && y < 315) {
                 xpMode = xpMode === 'STEPS' ? 'KM' : (xpMode === 'KM' ? 'KCAL' : 'STEPS');
                 playNormalClickSound();
                 return;
@@ -875,6 +876,11 @@
         function renderLoop(now) {
             const dt = (now - lastTime) / 1000;
             lastTime = now;
+
+            // Animate rune ring continuously, boosting speed during dice roll
+            const isRolling = rollState === 'ROLLING';
+            const spinSpeed = isRolling ? 75 : 5.5; // degrees per second
+            runeRingAngle = (runeRingAngle + spinSpeed * dt) % 360;
 
             if (rollState === 'ROLLING') {
                 const elapsed = now - rollStartTime;
@@ -993,41 +999,43 @@
 
             const breathing = Math.cos(now / 1000 * 2.2) * 0.15 + 0.85;
 
-            // Runic Summoning Ring
+            // Runic Summoning Ring (Continuous 360° celestial rotation)
+            const ringR = w * 0.472;
+            const innerRingR = w * 0.430;
+            const runeR = w * 0.451;
+
             ctx.strokeStyle = theme.goldDark;
-            ctx.lineWidth = 1.0;
+            ctx.lineWidth = 0.9;
             ctx.globalAlpha = 0.22 * breathing;
             ctx.beginPath();
-            ctx.arc(cx, cy, w * 0.445, 0, Math.PI * 2);
+            ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
             ctx.stroke();
 
             ctx.lineWidth = 0.6;
             ctx.beginPath();
-            ctx.arc(cx, cy, w * 0.405, 0, Math.PI * 2);
+            ctx.arc(cx, cy, innerRingR, 0, Math.PI * 2);
             ctx.stroke();
 
             ctx.fillStyle = theme.goldLight;
-            ctx.font = '14px serif';
+            ctx.font = '12px serif';
             ctx.textAlign = 'center';
-            const runeR = w * 0.425;
+            const stepAngle = 360 / RUNES.length;
             RUNES.forEach((rune, i) => {
-                const angle = (i * 360 / RUNES.length - 90) * Math.PI / 180;
-                const deg = i * 360 / RUNES.length - 90;
-                // Filter out Top (Clock & Title), Bottom (Date & Weather/HR), Right (XP Arc), Left (HP Arc)
-                const isTop = deg >= -120 && deg <= -60;
-                const isBottom = deg >= 60 && deg <= 120;
-                const isRight = deg >= -45 && deg <= 45;
-                const isLeft = (deg >= 135 && deg <= 225) || (deg >= -225 && deg <= -135);
-                if (isTop || isBottom || isRight || isLeft) return;
-
+                const deg = (i * stepAngle - 90 + runeRingAngle) % 360;
+                const angle = deg * Math.PI / 180;
                 const rx = cx + runeR * Math.cos(angle);
                 const ry = cy + runeR * Math.sin(angle);
-                ctx.fillText(rune, rx, ry + 5);
+
+                ctx.save();
+                ctx.translate(rx, ry);
+                ctx.rotate((deg + 90) * Math.PI / 180);
+                ctx.fillText(rune, 0, 4);
+                ctx.restore();
             });
             ctx.globalAlpha = 1.0;
 
             // Left HP Arc
-            const arcR = w * 0.42;
+            const arcR = w * 0.405;
             const hpStart = 138 * Math.PI / 180;
             const hpSweep = 84 * Math.PI / 180;
             ctx.lineWidth = 10;
@@ -1055,7 +1063,7 @@
             ctx.font = 'bold 12px Cinzel, serif';
             ctx.fillStyle = theme.hpRuby;
             const hpText = batteryMode === 'PERCENTAGE' ? `HP ${Math.round(batteryLevel * 100)}%` : `${Math.round(batteryLevel * 24)}h BAT`;
-            ctx.fillText(hpText, cx - arcR * 0.65, cy + 4);
+            ctx.fillText(hpText, cx - arcR * 0.62, cy + 4);
 
             // Right XP Arc
             const xpStart = -42 * Math.PI / 180;
@@ -1087,7 +1095,7 @@
             let xpText = `${(stepCount / 1000).toFixed(1)}k XP`;
             if (xpMode === 'KM') xpText = `${(stepCount * 0.00075).toFixed(1)} km`;
             else if (xpMode === 'KCAL') xpText = `${Math.round(stepCount * 0.045)} kcal`;
-            ctx.fillText(xpText, cx + arcR * 0.65, cy + 4);
+            ctx.fillText(xpText, cx + arcR * 0.62, cy + 4);
 
             // Top Digital Clock
             ctx.font = '11px Cinzel, serif';
