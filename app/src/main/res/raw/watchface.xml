@@ -22,8 +22,9 @@
             </Ellipse>
         </PartDraw>
 
-        <!-- Continuous Rotating Arcane Rune Group (Animates in hardware compositor) -->
+        <!-- Continuous Rotating Arcane Rune Group (Fades in Ambient for power efficiency) -->
         <Group x="23" y="23" width="420" height="420" id="rune_ring">
+            <Variant mode="AMBIENT" target="alpha" value="0" />
             <Transform mode="TO_ANGULAR" value="([SECOND] + [MILLISECOND] / 1000.0) * 6" />
             <PartDraw x="0" y="0" width="420" height="420">
                 <Line x1="210" y1="4" x2="210" y2="16"><Stroke color="#FFF5D77F" thickness="3" /></Line>
@@ -41,15 +42,16 @@
             </PartDraw>
         </Group>
 
-        <!-- Digital Time Display (Enlarged) -->
+        <!-- Digital Time Display -->
         <DigitalClock x="83" y="52" width="300" height="70">
             <TimeText format="HH:mm" align="CENTER">
                 <Font family="SYNC_TO_DEVICE" size="62" color="#FFF2D082" weight="BOLD" />
             </TimeText>
         </DigitalClock>
 
-        <!-- Seconds Display -->
+        <!-- Seconds Display (Hidden in Ambient mode for MCU low-power savings) -->
         <PartText x="83" y="122" width="300" height="26">
+            <Variant mode="AMBIENT" target="alpha" value="0" />
             <Text align="CENTER">
                 <Template>: %02d</Template>
                 <Parameter expression="[SECOND]" />
@@ -68,10 +70,14 @@
             <Font family="SYNC_TO_DEVICE" size="15" color="#FFB89738" />
         </PartText>
 
-        <!-- Central D20 Die (Enlarged to 180x180, +20% larger) -->
+        <!-- Central D20 Die -->
         <Group x="143" y="172" width="180" height="180" id="d20_die_group">
-            <Transform mode="SCALE_X" value="1.0 + 0.02 * sin(([SECOND] + [MILLISECOND] / 1000.0) * 2.0)" />
-            <Transform mode="SCALE_Y" value="1.0 + 0.02 * sin(([SECOND] + [MILLISECOND] / 1000.0) * 2.0)" />
+            <Transform mode="SCALE_X" value="1.0 + 0.02 * sin(([SECOND] + [MILLISECOND] / 1000.0) * 2.0)">
+                <Variant mode="AMBIENT" target="value" value="1.0" />
+            </Transform>
+            <Transform mode="SCALE_Y" value="1.0 + 0.02 * sin(([SECOND] + [MILLISECOND] / 1000.0) * 2.0)">
+                <Variant mode="AMBIENT" target="value" value="1.0" />
+            </Transform>
 
             <PartDraw x="0" y="0" width="180" height="180">
                 <Ellipse x="5" y="5" width="170" height="170">
@@ -92,16 +98,13 @@
 
             <PartText x="0" y="118" width="180" height="28">
                 <Text align="CENTER">
-                    <Template>⚔ TIRAR ⚔</Template>
+                    <Template>⚔ D20 ⚔</Template>
                 </Text>
                 <Font family="SYNC_TO_DEVICE" size="15" color="#FFD4AF37" weight="BOLD" />
             </PartText>
-
-            <!-- Tapping launches the full 3D interactive Baldur's Gate 3 rolling activity -->
-            <Launch targetPackage="com.bg3.watchface.debug" targetClass="com.bg3.watchface.BG3InteractiveActivity" />
         </Group>
 
-        <!-- Left Side Integrated HP Stat Indicator -->
+        <!-- Left Side Integrated HP Stat Indicator (Battery) -->
         <PartText x="15" y="240" width="120" height="52">
             <Text align="CENTER">
                 <Template>♥ HP&#10;%d%%</Template>
@@ -119,11 +122,11 @@
             <Font family="SYNC_TO_DEVICE" size="16" color="#FF4CC9F0" weight="BOLD" />
         </PartText>
 
-        <!-- Bottom Heart Rate Complication -->
+        <!-- Bottom Heart Rate Stat Indicator -->
         <PartText x="83" y="380" width="300" height="28">
             <Text align="CENTER">
                 <Template>♦ %d BPM</Template>
-                <Parameter expression="[HEART_RATE]" />
+                <Parameter expression="round([HEART_RATE])" />
             </Text>
             <Font family="SYNC_TO_DEVICE" size="16" color="#FFF5D77F" weight="BOLD" />
         </PartText>

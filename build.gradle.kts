@@ -1,5 +1,4 @@
-// Root build.gradle.kts for BG3 Wear OS Watch Face
+// Root build.gradle.kts for BG3 Wear OS Watch Face (WFF)
 plugins {
     alias(libs.plugins.android.application) apply false
-    alias(libs.plugins.kotlin.android) apply false
 }
